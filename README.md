@@ -1,4 +1,4 @@
 # LogSocket
-~ My universal diagnostics logging tool ~
+~ My cross-platform diagnostics logging tool ~
 
 Just starting with GitHub...
