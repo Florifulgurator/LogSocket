@@ -3,6 +3,8 @@
 
 Just starting with GitHub...
 
+...
+
 A nice experimental result is the Erlang distribution in situ, which was first found for early telephone systems and also looks valid in my 3-websocket system. This sample uses a java.net.http.WebSocket logger, a Tomcat javax.websocket server, and a JavaScript websocket client in a Chrome browser window in an elderly laptop. (A javax.websocket logger at a 2nd Tomcat is half as fast, with a similar looking distribution. TODO: Try TooTallNate's org.java_websocket, perhaps minimize for logger.)
 ```
 N=3500 Min=62.9 Max=8267.7 Median=116 Mean=173.4
