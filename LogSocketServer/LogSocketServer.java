@@ -1,17 +1,26 @@
 package florifulgurator.logsocket.server;
 
+import static florifulgurator.logsocket.utils.MGutils.*;
+
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.Map.Entry;
+import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import javax.servlet.ServletContextEvent;
 import javax.servlet.ServletContextListener;
@@ -27,86 +36,88 @@ import javax.websocket.server.ServerEndpoint;
 
 
 //TODO Fine-grained synchronized / locks for optimized performance.
-//TODO ? StringBuilder ? StringJoiner ? Text Blocks ?
+//     Synchronized static methods are synchronized on the class object
 
-@WebListener
-@ServerEndpoint("/ws")
+
+@ServerEndpoint("/ws")  // javax.websocket.server
+@WebListener            // javax.servlet.annotation for ServletContextListener to shut down ExecutorService and save properties
 public class LogSocketServer implements ServletContextListener  {
 
-	public static ExecutorService  exctrService = Executors.newFixedThreadPool(30);
-
 	// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-	// Tomcat can't shut down ExecutorService:
 	public void contextInitialized(ServletContextEvent sce) {
 		System.out.println(">>>>>>>>>> LogSocketServer: Web application initialization is starting <<<<<<<<<<");
 	} 
 	public void contextDestroyed(ServletContextEvent sce) { 
-		exctrService.shutdownNow();
+		exctrService.shutdownNow(); // Tomcat can't shut down ExecutorService:
+		
+		if (saveFilter1) { //TODO #7f344280
+			props.setProperty( "filter1", filter1.stream().collect(Collectors.joining(" ")) );
+			try { props.store(new FileWriter(rootPath+"LogSocketServer.properties"), null); }
+			catch (IOException e) {	System.err.println("!!!! LogSocketServer.properties likely not saved. Exception: "+e.getClass().getName()+" "+e.getMessage()); }
+		}
+		
 		System.err.println(">>>>>>>>>> LogSocketServer: ServletContext is about to be shut down <<<<<<<<<<");
 	} 
 	// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 	// enough of wasteful indentation :-)
 
-public static long                        lastMsgT = -1; // #777237b5
+public static ExecutorService              exctrService = Executors.newFixedThreadPool(10);
 
-public static record LggRcrd(String longId, String cmdPars) {}
-// cmdPars for !NEW_LGGR command, to later compose %NEW_LGGR commands from buffer
-public static Map<String,LggRcrd>         lggrList = new ConcurrentHashMap<String,LggRcrd>(100);
-//lggr.shortId |=> [lggr.longStr, "%NEW_LGGR (...)" params (...) string]
+public static record LggrRcrd(String longId, String comment, boolean stopped, long T) {} //Records are immutable data classes
+public static Map<String,LggrRcrd>        lggrMap = new ConcurrentHashMap<>(100); // lggr.shortId |=> LggrRcrd
+public static Comparator<String>          shortIdComprtr = (l1, l2) -> (int)Math.signum(lggrMap.get(l1).T - lggrMap.get(l2).T);
 
 public static Integer                     lastLogSocketNr = 0;
-// LogSocket Session => LogSocket.Nr, determined by SrvrCmd "!GREETS".  ?WeakHashMap? in case onClose(...) fails
-public static Map<Session, Integer>       logScktSssns = new ConcurrentHashMap <Session, Integer>(20);
+public static MyBiMap <Session, Integer>  lgScktSssn2Nr = new MyBiMap <>(); // TODO?  ?WeakHashMap? in case onClose(...) fails
 public static Set<Session>                lstnrSssns = ConcurrentHashMap.newKeySet();
 public static Boolean	                  hasListeners = false;
 
-public static Queue<String>               srvrBuffer = new ConcurrentLinkedQueue<String>();
+public static Queue<String>               srvrBuffer = new ConcurrentLinkedQueue<>();
 
-public static Map<String, Long>           timersStartT = new ConcurrentHashMap<String, Long>(20); //Clock.T()
-public static Map<String, String>         timersDT = new ConcurrentHashMap<String, String>(20); // DT in ms as String
+private static LinkedHashSet<String>      filter1 = new LinkedHashSet<>(); // insertion order to keep things tidy //DEV #6cb5e491
+private static boolean                    saveFilter1 = true;
 
-public static Map<String, RandomVar>      randomVars = new ConcurrentHashMap<String, RandomVar>(20);
+public static Map<String, Long>           timersStartT = new ConcurrentHashMap<>(20); //Clock.T()
+public static Map<String, String>         timersDT = new ConcurrentHashMap<>(20); // DT in ms as String
+
+public static Map<String, RandomVar>      randomVars = new ConcurrentHashMap<>(20);
 
 //https://www.baeldung.com/java-concurrent-map
-//Hashtable: 1142.45  SynchronizedHashMap: 1273.89  ConcurrentHashMap: 230.2
+//Hashtable: 1142.45  SynchronizedHashMap: 1273.89  ConcurrentHashMap: 230.2   (But: For serious performance benchmarking use JMH "All else is a waste of time")
+
 
 // Commands assigned in static {...} block later >>>>>>>>>>>>>>>>>>>>>>>>>>>
 interface LggrCmd {	public void exec(String lggrLongStr, String arg); }
-public static final Map<String, LggrCmd>  lggrCommands = new ConcurrentHashMap<String, LggrCmd>(3);
+public static final Map<String, LggrCmd>  lggrCommands = new ConcurrentHashMap<>(3);
+
 interface SrvrCmd {	public void exec(Session sess, String arg) throws Exception; }
-public static final Map<String, SrvrCmd>  srvrCommands = new ConcurrentHashMap<String, SrvrCmd>(30);
+public static final Map<String, SrvrCmd>  srvrCommands = new ConcurrentHashMap<>(30);
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-public static final Pattern               blankPttrn = Pattern.compile("\\s+");
-public static final Pattern               minusPttrn = Pattern.compile("-");
-public static final Pattern               dotPttrn   = Pattern.compile("[.]");
+private static long                       lastMsgT = -1; // #777237b5
+private static long                       firstLgScktT = 0;
+private static boolean                    firstLgScktTisNew = true;
 
+private static final Pattern              blankPttrn = Pattern.compile("\\s+");
+
+private static String lambdStrVar = ""; // Used in lambda expression. "Local variable xyz defined in an enclosing scope must be final or effectively final"
+
+private static String                     rootPath = null;
+private static Properties                 props = new Properties();
 
 
 //Test stuff >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	// Most "public" due to old test. // TODO private/public
 	public static boolean debug = false;
-	public static boolean TEST0 = false; // for Devtest WebSocketImpl2
-	public static boolean TEST1 = false; // Fields public to simplify test. FIXME
-	//For TEST1:
+//  TEST1 result: Not a singleton! Due to Tomcat "reflection attack"?
 	public static String  thisClObjID = "LogSocketServer"; // assigned in constructor => NOT STATIC
-	public static String  sessionClObjID = "1st assignment"; // assigned in @OnOpen => NOT STATIC
-	public static String  weird = "Hello "; // assigned in @OnMessage => static
-	public static int constrCtr = 0; // assigned in constructor => static
-	public static int onopenCtr = 0; // assigned in @OnOpen => static
-	public static Integer constrCtrB = 0; // static
-	public static Integer onopenCtrB = 0; // static
-	public static LogSocketServer THIS;
-
-	public LogSocketServer() { 
-		LogSocketServer.thisClObjID = shortClObjID(this);
-		if(TEST1) {
-			LogSocketServer.THIS = this;
-			debugMsg(1, "xx.. "+thisClObjID+": CONSTRUCTOR ++constrCtr="+(++constrCtr)+" ++constrCtrB="+(++constrCtrB));
-			debugMsg(1, "this.getClass(). ...: " +this.getClass().getCanonicalName());
-		}
-	}
-	protected void finalize() {	System.out.println("xx.. "+thisClObjID+": FINALIZE "); }
-// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+//	public static String  sessionClObjID = "1st assignment"; // assigned in @OnOpen => NOT STATIC
+//	public static String  weird = "Hello "; // assigned in @OnMessage => static
+//	public LogSocketServer() { 
+//		LogSocketServer.thisClObjID = shortClObjID(this);
+//	}
+//  J.Bloch: Effective Java, on singletons: "As of release 1.5, there is a third approach to implementing singletons. Simply make an enum type with one element: [...] This approach is functionally equivalent to the public field approach, except that it is more concise, provides the serialization machinery for free, and provides an ironclad guarantee against multiple instantiation, even in the face of sophisticated serialization or reflection attacks. While this approach has yet to be widely adopted, a single-element enum type is the best way to implement a singleton."
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Test stuff
 
 
 @OnOpen
@@ -114,50 +125,35 @@ synchronized public void onOpen(Session sess, EndpointConfig epConfig) {
 // when the endpoint is deployed, there is precisely one EndpointConfig instance 
 // holding the configuration information for all the instances of the endpoint class. #DDS p.99
 	if (lastMsgT==-1) lastMsgT = Clock.T(); // #777237b5
-
-	//Test stuff >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-	if (TEST0) System.out.println("AAAAAAAAAA--- onOpen "+shortClObjID(sess));
-	if(TEST1) {
-		LogSocketServer.sessionClObjID = shortClObjID(sess);
-		debugMsg(1, "@OnOpen "+thisClObjID+" "+shortClObjID(sess)+" ++onopenCtr="+(++onopenCtr)+" ++onopenCtrB="+(++onopenCtrB));
-	
-		debugMsg(0, "        Session.getUserProperties()="+sess.getUserProperties().entrySet().stream().map(e -> e.getKey()+"="+shortClObjID(e.getValue())).collect( Collectors.joining(", ") ));
-		debugMsg(0, "        EndpointConfig.getUserProperties()="+epConfig.getUserProperties().entrySet().stream().map(e -> e.getKey()+"="+shortClObjID(e.getValue())).collect( Collectors.joining(", ") ));
-		// org.apache.tomcat.websocket.pojo.PojoEndpoint.methodMapping=PojoMethodMapping@41669527
-		debugMsg(0, "FFFFFFF"+LogSocketServer.THIS.getClass().getName());
-		//Arrays.stream(LogSocketServer.THIS.getClass().getFields()).forEach(f->debugMsg(1, f.toString()));
-		// All fields shown static as declared. But some are actually not!
-	}
-	// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 }
 
 @OnClose
-synchronized public void onClose(Session sess, CloseReason reason) throws Exception {
-	if(TEST0) System.out.println("AAAAAAAAAA--- onClose "+shortClObjID(sess));
-	
-	if ( logScktSssns.containsKey(sess) ) {
-		Integer logScktNr = logScktSssns.remove(sess); // can be null!
+public void onClose(Session sess, CloseReason reason) throws Exception {
+	if ( lgScktSssn2Nr.containsKey(sess) ) {
+		Integer logScktNr = lgScktSssn2Nr.remove(sess); // can be null!
 		Set<String> delLggrs = new HashSet<String>();
-		lggrList.forEach(
-			(key,rcrd) -> {
-				if ( key.split("_")[0].equals("/"+logScktNr) ) { //key=shortId
-					delLggrs.add(key);
-					sendMsgToAllListeners("%DEL_LGGR "+key+" "+rcrd.longId, true );
+		synchronized(lggrMap) {
+			lggrMap.forEach(
+				(key,rcrd) -> {
+					if ( key.split("_")[0].equals("/"+logScktNr) ) { //key=shortId
+						delLggrs.add(key);
+						sendMsgToAllListeners("%GC_LGGR "+key+" "+rcrd.longId, true );
+					}
 				}
-			}
-		);
-		delLggrs.forEach(k->lggrList.remove(k));
+			);
+			delLggrs.forEach(k->lggrMap.remove(k));
+		}
 		
 		System.out.println(".... "+thisClObjID+" @OnClose: logSocket /"+logScktNr+" "+shortClObjID(sess)+" gone. Close reason: "+ reason.getReasonPhrase());
 		
 	} else {
-
-		if (lstnrSssns.remove(sess)) {
-			if (lstnrSssns.size()==0) hasListeners = false;
+		if ( lstnrSssns.remove(sess) ) {
+			if ( lstnrSssns.isEmpty() ) hasListeners = false;
+			
 			System.out.println(".... "+thisClObjID+" @OnClose: listener %"+getSessIdDec(sess)+" "+shortClObjID(sess)+" gone."
 					+ " Close reason: "+ reason.getReasonPhrase());
 		} else {
-			// FIXME 11811f4b
+			// FIXME #11811f4b
 			System.err.println("!... "+thisClObjID+" @OnClose: PROTOCOL ERROR "+shortClObjID(sess)+" neither logSocket nor listener."
 					+" Close reason: "+ reason.getReasonPhrase()
 			);
@@ -167,27 +163,14 @@ synchronized public void onClose(Session sess, CloseReason reason) throws Except
 
 @OnError
 synchronized public void onError(Session sess, Throwable thr) {
-	System.err.println("!!!. "+thisClObjID+" @OnError: "+shortClObjID(sess)+" "+thr.getStackTrace()  ); // .getMessage());
+	System.err.println("!!!. "+thisClObjID+" @OnError: "+shortClObjID(sess)+" "+thr.getMessage() ); // .getMessage());
 }
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 @OnMessage // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 synchronized public void onMessage(Session session, String msg) throws Exception {
-
-	//Test stuff >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-	if (TEST0) System.out.println("AAAAAAAAAA--- onMessage "+shortClObjID(session)+" msg="+msg);
-	if(TEST1 && !weird.contains(shortClObjID(session))) {
-		weird+=shortClObjID(session);
-		System.err.println("weird=\""+weird+"\" -- "+thisClObjID+"/"+sessionClObjID
-			+"\nonopenCtr="+onopenCtr+" constrCtr="+constrCtr
-			+" onopenCtrB="+onopenCtrB+" constrCtrB="+constrCtrB
-			+"\nLogSocketServer.THIS="+THIS.toString()+" this="+this.toString()
-		);
-		//Arrays.stream(THIS.getClass().getFields()).forEach(f->debugMsg(1, ">>> "+f.toString()));
-	}
-	// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-	
+// synchronized static methods are synchronized on the class object
 	char ch1 = msg.charAt(0);
 	
 	if( ch1=='*' ) { // '*' Plain log message, should have no line breaks >>>>>>
@@ -198,10 +181,10 @@ synchronized public void onMessage(Session session, String msg) throws Exception
 		sendMsgToAllListeners("+"+ (-lastMsgT+(lastMsgT=Clock.T())) +"&"+msg.substring(1), false);
 		return;
  	} else if( ch1=='~' ) { // '~' LogSocket-buffered log message, possibly with line breaks. Extra treatment by client
-		sendMsgToAllListeners("+&"+msg.substring(1)+ " [LogSocket buffer]", false);
+		sendMsgToAllListeners("+NaN&"+msg.substring(1)+ " [LOG_BUF]", false); // #429f6c0a
 		return;
   	} else if( ch1=='$' ) { // Log messages to be amended or generated by server >>>>>
-  		// e.g. "$Srvlt/1#JAVALOOP.1&/1_7&1001 MT_LOG JavaLoopNano" //FIXME "Micro"
+  		// e.g. "$Srvlt/1#JAVALOOP.1&/1_7&1001 MT_LOG JavaLoopMicro"
    		try {
    		   	String[] splitMsg = blankPttrn.split(msg, 3);
    			try {
@@ -210,14 +193,14 @@ synchronized public void onMessage(Session session, String msg) throws Exception
    						 splitMsg[2]
    				);
    				// This is just to keep the formalism in line with server commands (below).
-   				// There is just one such command yet, and perhaps there wont be more.
+   				// There is just one such command yet, and likely there wont be more.
    				return;
    			} catch(Exception e) {
-   			   	sendMsgToAllListeners("!ERROR 11 Server: Exception: "+e.getMessage()+" msg=\""+msg+"\"", false);
+   			   	sendMsgToAllListeners("!ERROR 11 LogSocketServer: Exception: "+e.getClass().getName()+" "+e.getMessage()+" msg=\""+msg+"\"", false);
    			   	return;	
    			}
    		} catch (Exception e) {
-   			sendMsgToAllListeners("!ERROR 10 Server: Syntax Error. "+e.getMessage()+" msg=\""+msg+"\"", false);
+   			sendMsgToAllListeners("!ERROR 10 LogSocketServer: Syntax Error. "+e.getMessage()+" msg=\""+msg+"\"", false);
    			return;
    		}
    	}
@@ -226,41 +209,322 @@ synchronized public void onMessage(Session session, String msg) throws Exception
    	//  Specific reply to session: sendText(session,...)
 	
 	String[] splitMsg = blankPttrn.split(msg, 2); // Pattern applied at most 1 times, array length <= 2, last entry contains rest.
-
+	SrvrCmd cmd = srvrCommands.get(splitMsg[0]);
 	try {
-		srvrCommands.get(splitMsg[0]).exec( session, splitMsg.length==1?"":splitMsg[1] );
-		return;
-	}
+		cmd.exec( session, splitMsg.length==1?"":splitMsg[1] );
+	} 
 	catch(NullPointerException e) {
-		sendMsgToAllListeners("!ERROR 13 Server: Unknown command. msg=\""+msg+"\"", false);
+		sendMsgToAllListeners("!ERROR 13 LogSocketServer: Unknown command \""+splitMsg[0]+"\" msg=\""+msg+"\" session="+shortClObjID(session), false);
 		return;
 	}
 	catch(Exception e) {
-		sendMsgToAllListeners("!ERROR 12 Server: Unknown error. Exception message: "+e.getMessage()+" msg=\""+msg+"\"", false);
+		sendMsgToAllListeners("!ERROR 12 LogSocketServer: Exception while executing command: "+e.getClass().getName()+" "+e.getMessage()+" msg=\""+msg+"\" session="+shortClObjID(session), false);
 		return;
 	}
 
 
 }// onMessage(...)  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-static {
-// static block is indeed static (cf. TEST1), called only once:
 
+static { // static block >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// static block is indeed static (cf. TEST1), called only once.
+
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 // Commands used by onMessage(...) >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-lggrCommands.put("$MT_LOG", new LggrCmd() { public void exec(String msgPrefix, String reportName) {
+
+srvrCommands.put("!HELLO", new SrvrCmd() { synchronized public void exec(Session sess, String arg)
+{
+	//Listener wants to register.
+
+	sendText(sess, "%SESSID "+getSessIdDec(sess)+" "+shortClObjID(sess));
+	sendText(sess, "%FIRST_T "+firstLgScktT);
+	sendText(sess, "%TIMERS "+timersToString()); // TODO #1538e9e5 Let server send only new timer results, append named list in client.
+	sendText(sess, "%CLOCK "+Clock.nanoUnit +" "+Clock.T_ms());
+
+	lambdStrVar = "";
+	// TODO #495e57b8 get loggers (incl. numMsgs) from LogSockets /PING, check with lggrMap
+	synchronized(lggrMap) {
+		lggrMap.keySet().stream().sorted(shortIdComprtr).forEach( shortId -> {
+			LggrRcrd rcrd = lggrMap.get(shortId);
+			sendText(sess, "%NEW_LGGR " + rcrd.T + " " + shortId + " " + rcrd.longId + " " + rcrd.comment ); // TODO #495e57b8 numMsgs
+			if (rcrd.stopped) lambdStrVar += " "+shortId;
+		});
+	}	
+	if (!lambdStrVar.isEmpty()) sendText(sess, "%STOPPED"+lambdStrVar );
+	if (!filter1.isEmpty()) sendText(sess, "%FILTER1_ADD "+filter1.stream().collect(Collectors.joining(" ")));
+	
+	// Wait until listener has digested and replies with "!READY":
+	sendText(sess, "@READY?");
+}
+} );
+// ---
+srvrCommands.put("!READY", new SrvrCmd() { synchronized public void exec(Session sess, String arg)
+{
+	lstnrSssns.add(sess);
+	hasListeners = true;
+	
+	if (!srvrBuffer.isEmpty()) {
+		sendText(sess, "* Server-buffered messages while nobody was listening:");
+		while(!srvrBuffer.isEmpty()) { sendText(sess, srvrBuffer.remove());	}
+		sendText(sess, "* Buffer emptied. Live log messages:");     		 
+	}
+}
+} );
+// ---
+srvrCommands.put("!GREETS", new SrvrCmd() { synchronized public void exec(Session LgScktSssn, String arg)
+{
+	//Initialize logSocket
+	//TODO re-use old numbers according to realm
+	//TODO check if LgScktSssn is indeed a LogSocket session
+	if( lgScktSssn2Nr.isEmpty() ) {
+		lastLogSocketNr = 0;
+		firstLgScktT = Clock.T(); firstLgScktTisNew = true;
+	
+		if ( !lggrMap.isEmpty() ) {
+			System.err.println("!!.. "+thisClObjID+": !GREETS: lgScktSssn2Nr.isEmpty() but lggrMap not empty.");
+			lggrMap.clear();
+		}
+	} else {
+		if( lgScktSssn2Nr.containsKey(LgScktSssn) ) System.err.println("!!!. "+thisClObjID+": **BUG** !GREETS: "+shortClObjID(LgScktSssn)+" already known.");
+	}
+				
+	lgScktSssn2Nr.put(LgScktSssn, ++lastLogSocketNr);
+	sendText(LgScktSssn, "/START "+lastLogSocketNr);
+}
+} );
+// ---
+srvrCommands.put("!GC_LGGR", new SrvrCmd() { public void exec(Session sess, String argStr)
+{
+	//From Lggr.finalize()
+	sendMsgToAllListeners("%GC_LGGR " + argStr, true);// msg gets lost when nobody is listening
+	String[] args = blankPttrn.split(argStr, 2);
+	boolean existed;
+	synchronized(lggrMap) {
+		existed = lggrMap.remove(args[0]) != null;
+	}
+	if( !existed ) {
+		System.err.println("!!.. "+thisClObjID+": @onMessage !GC_LGGR ... NOT FOUND: "+args[0]);
+		sendMsgToAllListeners("!ERROR 4 LogSocketServer: !GC_LGGR: Not found: \""+args[0]+"\"", false);	
+	}
+}
+} );
+// ---
+srvrCommands.put("!NEW_LGGR", new SrvrCmd() { public void exec(Session sess, String argStr)
+{
+	if(firstLgScktTisNew) {
+		sendMsgToAllListeners("%FIRST_T "+firstLgScktT, true);
+		firstLgScktTisNew = false;
+	}
+	long T = Clock.T();
+	sendMsgToAllListeners("%NEW_LGGR " +T+ " " + argStr, true); // true = not into srvrBuffer. Kept extra (%NEW_LGGR) or gets lost when nobody is listening
+	String[] args = blankPttrn.split(argStr, 3);
+	boolean existed;
+	synchronized(lggrMap) {
+		existed = lggrMap.put( args[0], new LggrRcrd( args[1], args[2], false, T ) ) != null;
+	}
+	
+	if( existed ) {
+		System.err.println("!!.. "+thisClObjID+": @onMessage DUPLICATE: "+args[0]);
+		sendMsgToAllListeners("!ERROR 3 LogSocketServer: Duplicate: "+args[0], false);
+	}
+}
+} );
+// ---
+srvrCommands.put("!T_STOP", new SrvrCmd() { synchronized public void exec(Session sess, String name)
+{
+	String s = timersDT.get(name);
+	if( s==null || timersStartT.get(name)==-1 ) {
+		sendMsgToAllListeners("!ERROR 5 LogSocketServer: Timer never started", false);
+	} else {
+		String T = (double)(Clock.T() - timersStartT.get(name))/(double)Clock.nanoUnit+"ms";
+		timersDT.put(name, (s.isEmpty()) ? T : s+", "+T );
+		timersStartT.put(name, (long)-1);
+		sendMsgToAllListeners("* Timer "+name+" STOP "+T+" <------", false);
+		// TODO #1538e9e5 Let server send only new timer results, append named list in client.
+		sendMsgToAllListeners("%TIMERS "+timersToString(), true);
+	}
+}
+} );
+// ---
+srvrCommands.put("!T_START", new SrvrCmd() { synchronized public void exec(Session sess, String name)
+{
+	timersStartT.put(name, Clock.T());
+	if(!timersDT.containsKey(name)) timersDT.put(name,"");
+	sendMsgToAllListeners("* Timer "+name+" START ------>", false);
+}
+} );
+// ---
+srvrCommands.put("!GC", new SrvrCmd() { synchronized public void exec(Session sess, String arg)
+{
+	if( lstnrSssns.contains(sess) ) {
+		// #3ffba3b The only listener we have right now is the LogSocket Client
+		sendMsgToAllListeners("* Garbage collection requested by Client %"+getSessIdDec(sess), true);
+	} else if( lgScktSssn2Nr.containsKey(sess) ) {
+		sendMsgToAllListeners("* Garbage collection requested by LogSocket /"+lgScktSssn2Nr.get(sess), true);
+	} else {
+		sendMsgToAllListeners("!ERROR 6 LogSocketServer: "+shortClObjID(sess)+" neither Listener nor LogSocket", false);
+	}
+	lgScktSssn2Nr.k_v.forEach( (key,val) -> sendText(key, "/GC "+val) ); // val not used by LogSocket
+	System.gc();
+}
+} );
+// ---
+srvrCommands.put("/GC", new SrvrCmd() { synchronized public void exec(Session sess, String arg)
+{
+	sendMsgToAllListeners("/GC "+arg, false);
+}
+} );
+// ---
+srvrCommands.put("/PING", new SrvrCmd() { synchronized public void exec(Session sess, String arg)
+{
+	if( arg.isEmpty() ) {
+		// Forward command to LogSockets (command not necessarily from listener)
+		lgScktSssn2Nr.k_v.forEach( (key,val) -> sendText(key, "/PING "+val) ); // val not used by LogSocket
+		if (lgScktSssn2Nr.k_v.isEmpty()) sendText(sess, "! No LogSockets connected.");
+	} else {
+		// Send reply from LogSockets
+		sendMsgToAllListeners("* "+arg, false);
+	}
+}
+} );
+// ---
+srvrCommands.put("/FILTER", new SrvrCmd() { public void exec(Session sess, String arg) //JS: doSend(`/FILTER ${realm} /${LgScktNr} ${label} ;*`);
+{ 
+	String[] args = null;
+	Integer LgScktNr = null;
+	String realmLabel = null;
+	
+	try {
+		args = blankPttrn.split(arg, 4);
+		realmLabel = args[0]+args[2]; 
+		LgScktNr = Integer.parseInt(args[1].substring(1));
+	}
+	catch (NumberFormatException e) {}
+	catch (Exception e) {
+		sendMsgToAllListeners("!ERROR 17 LogSocketServer: /FILTER Exception: "+e.getClass().getName()+" "+e.getMessage()+" arg="+arg, false);
+		return;
+	}
+
+	synchronized(filter1) {
+		if (LgScktNr==null) {
+			// Global filter: All LogSockets, stored at Server, Clients, and LogSockets
+			filter1.add(realmLabel);
+			String effFinal = "/FILTER1_ADD "+realmLabel;
+			lgScktSssn2Nr.k_v.forEach( (key,val) -> sendText(key, effFinal) );
+			sendMsgToAllListeners("%FILTER1_ADD "+realmLabel, true);
+			// Receivers might have to check for duplicates. (E.g. Client #7ad7d40e )
+	
+		} else {
+			// Run time filter, TODO
+			Session lgScktSssn = lgScktSssn2Nr.v_k.get(LgScktNr);
+			sendText(lgScktSssn, "/FILTER2_ADD "+arg);
+			sendMsgToAllListeners("%FILTER2_ADD "+arg, false); // Job of LogSocket
+			sendMsgToAllListeners("! Major TODO :-)", false);
+		}
+	}
+}
+} );
+// ---
+srvrCommands.put("!FILTER1_REMOVE", new SrvrCmd() { public void exec(Session sess, String arg)
+{ 
+	synchronized(filter1) {
+		filter1.remove(arg);
+		lgScktSssn2Nr.k_v.forEach( (key,val) -> sendText(key,"/FILTER1_REMOVE "+arg) );
+		sendMsgToAllListeners("%FILTER1_REMOVE "+arg, false);
+	}
+}
+} );
+// ---
+srvrCommands.put("!STOPPED", new SrvrCmd() { public void exec(Session sess, String arg)
+{
+	synchronized(lggrMap) {
+		for (String shortId : blankPttrn.split(arg) ) {
+			LggrRcrd rcrd = lggrMap.get(shortId);
+			lggrMap.put(shortId, new LggrRcrd(rcrd.longId, rcrd.comment, true, rcrd.T));
+		}
+	}
+	sendMsgToAllListeners("%STOPPED "+arg, false);
+	//TODO #7594d994 client consistency test
+}
+} );
+// ---
+srvrCommands.put("!CLOSE", new SrvrCmd() { synchronized public void exec(Session sess, String arg)
+{
+	CloseReason cr = new CloseReason(CloseReason.CloseCodes.GOING_AWAY, "Executing command !CLOSE"); 
+	try {
+		sess.close(cr);
+	} catch(IOException e) {
+		sendMsgToAllListeners("!ERROR 12 LogSocketServer: SrvrCmd !CLOSE: "+e.getMessage(), false);
+	}
+}
+} );
+// --- Client side clock sync per clock ping pong
+srvrCommands.put("!TING", new SrvrCmd() { synchronized public void exec(Session sess, String arg)
+{
+	if ( Clock.tong==null ) {
+		Clock.tong = Clock.T_ms();
+		sendText(sess,"@TONG");
+	} else {
+		Clock.tong1 = Clock.T_ms();
+		// There could be a pause here
+		
+		// Now server-client tingtong:
+		Clock.ting = Clock.T_ms();
+		sendText(sess,"@TING");
+	}
+}
+} );
+srvrCommands.put("!TONG", new SrvrCmd() { synchronized public void exec(Session sess, String arg)
+{
+	if ( Clock.ting1==null ) {
+		Clock.ting1 = Clock.T_ms();
+		sendText(sess,"@TING");
+	} else {
+		sendText(sess,"@RSLT "+Clock.tong+" "+Clock.tong1+" "+Clock.ting+" "+Clock.ting1);
+		Clock.ting1 = null; Clock.ting1 = null; Clock.tong = null; Clock.tong1 = null; 
+	} 
+}
+} );
+// --- Server side clock sync, mirroring client side allgorithm
+srvrCommands.put("!SYNC", new SrvrCmd() { synchronized public void exec(Session sess, String arg)
+{
+	Clock.SyncDaemon.T0correction(sess, lastMsgT); // Launches thread and returns
+	// Thread sends reply "%T0CORR ... ... ..."
+}
+} );
+// ---
+srvrCommands.put("!SING", new SrvrCmd() { synchronized public void exec(Session sess, String arg)
+{
+	if (Clock.tong==null) Clock.tong = Clock.T_ms();
+	                else  Clock.tong1 = Clock.T_ms();
+	 sendText(sess,"@SONG");
+}
+} );
+srvrCommands.put("!SONG", new SrvrCmd() { synchronized public void exec(Session sess, String arg)
+{
+	Clock.ting1 = Clock.T_ms();
+	sendText(sess,"@SING");
+}
+} );
+srvrCommands.put("!RSLT", new SrvrCmd() { synchronized public void exec(Session sess, String arg)
+{
+	Clock.SyncDaemon.receiveTTResult(arg, lastMsgT);
+}
+} );
+
+// ------------------------------------------------------------
+lggrCommands.put("MT_LOG", new LggrCmd() { public void exec(String msgPrefix, String reportName) {
  	RandomVar rnd = randomVars.get(reportName);
  	if(rnd==null) {
- 		sendMsgToAllListeners("!ERROR 16 Server: !MT_LOG: Report \""+reportName+"\" not found.", false);
+ 		sendMsgToAllListeners("!ERROR 16 LogSocketServer: !MT_LOG: Report \""+reportName+"\" not found.", false);
  		return;
  	}
  	// synchronized rnd likely is still busy receiving data from thread launched by !MT_REPORT,
  	// so we postpone things into a thread:
 	exctrService.execute( () -> {
  		synchronized(randomVars) {
- 			// Avoid extremely unlikely race condition:
+ 			// FIXME: Avoid extremely unlikely race condition:
  			// The following sendMsgToAllListeners(...) have to come in a row (no other such construct interfering)
- 			// so the %MT_LOG client cmd can pick up the already stored text
- 			// (i.e. JavaScript extrTxt[extrTxtCtr] = extraText; // #366de29d) to avoid sending it twice:
  			sendMsgToAllListeners("+"+msgPrefix+" MicroTimer "+reportName+" "+rnd.getASCIIart(1,"μs") , true);
   			sendMsgToAllListeners("%MT_SHOW "+reportName+" "+rnd.getASCIIartHeader(), true);
 		}
@@ -268,17 +532,18 @@ lggrCommands.put("$MT_LOG", new LggrCmd() { public void exec(String msgPrefix, S
 }
 } );
 // ------------------------------------------------------------
-srvrCommands.put("!MT_REPORT", new SrvrCmd() { public void exec(Session sess, String arg) {
+srvrCommands.put("!MT_REPORT", new SrvrCmd() { public void exec(Session sess, String arg)
+{
 	String[] splitArg = blankPttrn.split(arg, 3);
 	Double unit; // Java Lggr sends stuff in 0.1 μs => unit=0.1	// TODO JavaScript lggr (5μs)
 	try {
 		unit = Double.parseDouble(splitArg[1]);
 		if(splitArg.length!=3) throw new Exception("arg length!=3");
 	} catch(Exception e) {
-		sendMsgToAllListeners("!ERROR 15 Server: !MT_REPORT: Syntax Error: "+e.getMessage(), false);
+		sendMsgToAllListeners("!ERROR 15 LogSocketServer: !MT_REPORT: Syntax Error: "+e.getMessage(), false);
 		return;	
 	}
-	String reportName = splitArg[0]; // TODO #1f6d462d Check reportName has no whitespace OR: Make sure this wont break it (server).
+	String reportName = splitArg[0];
 	RandomVar rnd;
 
 	synchronized(randomVars) {
@@ -290,162 +555,82 @@ srvrCommands.put("!MT_REPORT", new SrvrCmd() { public void exec(Session sess, St
 		}
 		exctrService.execute( () -> {
 			rnd.setValsIntString(splitArg[2], unit);
-			debugMsg(1, "!MT_REPORT thread="+Thread.currentThread().getName());
 		} );
 		// RandomVar::setValsIntString is synchronized
 	}
 }
 } );
-srvrCommands.put("!HELLO", new SrvrCmd() { synchronized public void exec(Session sess, String arg) {
-	//Listener wants to register.
-	lstnrSssns.add(sess);
-	hasListeners = true;
-
-	//Initialize listener:
-	sendText(sess, "%SESSID "+getSessIdDec(sess));//+"-"+shortClObjID(sess) );
-	sendText(sess, "%LOGSOCKETS "+logSocketsToString());
-	sendText(sess, "%NANOUNIT "+Clock.I_nanoUnit );
-	sendText(sess, "%TIMERS "+timersToString());
-	lggrList.forEach( (lggShortStr,rcrd) ->
-		sendText(sess, "%NEW_LGGR "+lggShortStr+" "+rcrd.longId+(rcrd.cmdPars!=null?" "+rcrd.cmdPars:"") )
-	);
-	
-	if (!srvrBuffer.isEmpty()) {
-		sendText(sess, "* Buffered messages while nobody was listening:");
-		while(!srvrBuffer.isEmpty()) { sendText(sess, srvrBuffer.remove());	}
-		sendText(sess, "* Buffer emptied. Live log messages:");     		 
-	}
+// ---
+srvrCommands.put("!REM", new SrvrCmd() { synchronized public void exec(Session sess, String arg)
+{
+	sendMsgToAllListeners("* Client %"+getSessIdDec(sess)+" says: "+arg, false); // Can/should only come from listener
 }
 } );
-srvrCommands.put("!DEL_LGGR", new SrvrCmd() { synchronized public void exec(Session sess, String argStr) {
-	//From Lggr.finalize()
-	//TODO from onClose
-	sendMsgToAllListeners("%DEL_LGGR " + argStr, true);// msg gets lost when nobody is listening
-	String[] args = blankPttrn.split(argStr, 2);
-	if( null == lggrList.remove(args[0]) ) {
-		System.err.println("!!.. "+thisClObjID+": @onMessage NOT FOUND: "+args[0]);
-		sendMsgToAllListeners("!ERROR 4 Server: !DEL_LGGR: Not found: "+args[0], false);	
-	}
-}
-} );
-srvrCommands.put("!NEW_LGGR", new SrvrCmd() { synchronized public void exec(Session sess, String argStr) {
-	sendMsgToAllListeners("%NEW_LGGR " + argStr, true); 
-			// true = not into srvrBuffer. Kept extra (%NEW_LGGR) or gets lost when nobody is listening
-	String[] args = blankPttrn.split(argStr, 3);
-	if( null != lggrList.put( args[0], new LggRcrd(args[1], args[2]) )  ) {
-		System.err.println("!!.. "+thisClObjID+": @onMessage DUPLICATE: "+args[0]);
-		sendMsgToAllListeners("!ERROR 3 Server: Duplicate: "+args[0], false);
-	}
-}
-} );
-srvrCommands.put("!T_STOP", new SrvrCmd() { synchronized public void exec(Session sess, String name) {
-	String s = timersDT.get(name);
-	if( s==null || timersStartT.get(name)==-1 ) {
-		sendMsgToAllListeners("!ERROR 5 Server: Timer never started", false);
-	} else {
-		String T = (double)(Clock.T() - timersStartT.get(name))/(double)Clock.I_nanoUnit+"ms";
-		timersDT.put(name, (s.isEmpty()) ? T : s+","+T );
-		timersStartT.put(name, (long)-1);
-		sendMsgToAllListeners("* Timer "+name+" STOP "+T+" <------", false);
-		sendMsgToAllListeners("%TIMERS "+timersToString(), true);
-	}
-}
-} );
-srvrCommands.put("!T_START", new SrvrCmd() { synchronized public void exec(Session sess, String name) {
-	timersStartT.put(name, Clock.T());
-	if(!timersDT.containsKey(name)) timersDT.put(name,"");
-	sendMsgToAllListeners("* Timer "+name+" START ------>", false);
-}
-} );
-srvrCommands.put("!GREETS", new SrvrCmd() { synchronized public void exec(Session LgScktSssn, String arg) {
-	//Initialize logSocket
-	//TODO re-use old numbers according to realm
-	//TODO check if LgScktSssn is indeed a LogSocket session
-	if( logScktSssns.isEmpty() ) {
-		lastLogSocketNr = 0;
-		//if(debug) debugMsg("xx.. "+thisClObjID+": registerNewLogSocketNr: TABULA RASA");
-		if ( !lggrList.isEmpty() ) {
-			System.err.println("!!.. "+thisClObjID+": !GREETS: logScktSssns.isEmpty() but lggrList not empty.");
-			lggrList.clear();
-		}
-	} else if( logScktSssns.containsKey(LgScktSssn) ) {
-		System.err.println("!!!. "+thisClObjID+": **BUG** !GREETS: "+shortClObjID(LgScktSssn)+" already known.");
-	}			
-	logScktSssns.put(LgScktSssn, ++lastLogSocketNr);
-	
-	sendText(LgScktSssn, "/START "+lastLogSocketNr);
-}
-} );
-srvrCommands.put("!GC", new SrvrCmd() { synchronized public void exec(Session sess, String arg) {
-	if( isListener(sess) ) {
-		sendMsgToAllListeners("* Garbage collection requested by Listener %"+getSessIdDec(sess), true);
-	} else if( logScktSssns.containsKey(sess) ) {
-		sendMsgToAllListeners("* Garbage collection requested by LogSocket /"+logScktSssns.get(sess), true);
-	} else {
-		sendMsgToAllListeners("!ERROR 6 Server: "+shortClObjID(sess)+" neither Listener nor LogSocket", false);
-	}
-	logScktSssns.forEach( (key,val) -> sendText(key, "/GC "+val) ); // val not used by LogSocket
-	System.gc();
-}
-} );
-srvrCommands.put("/GC", new SrvrCmd() { synchronized public void exec(Session sess, String arg) {
-	sendMsgToAllListeners("/GC "+arg, false);
-}
-} );
-srvrCommands.put("/PING", new SrvrCmd() { synchronized public void exec(Session sess, String arg) {
-	if( arg.isEmpty() ) {
-		// Forward command to LogSockets (command not necessarily from listener)
-		logScktSssns.forEach( (key,val) -> sendText(key, "/PING "+val) ); // val not used by LogSocket 
-	} else {
-		// Send reply from LogSockets
-		sendMsgToAllListeners("* "+arg, false);
-	}
-}
-} );
-srvrCommands.put("!THROW", new SrvrCmd() { synchronized public void exec(Session sess, String arg) throws Exception {
-	throw new Exception("TEST command !THROW.");
-}
-} );
-srvrCommands.put("!CLOSE", new SrvrCmd() { synchronized public void exec(Session sess, String arg) {
-	CloseReason cr = new CloseReason(CloseReason.CloseCodes.GOING_AWAY, "Executing command !CLOSE"); 
-	try {
-		sess.close(cr);
-	} catch(IOException e) {
-		sendMsgToAllListeners("!ERROR 12 Server: SrvrCmd !CLOSE: "+e.getMessage(), false);
-	}
-}
-} );
-srvrCommands.put("!REM", new SrvrCmd() { synchronized public void exec(Session sess, String arg) {
-	// Can/should only come from listener
-	sendMsgToAllListeners("* Client %"+getSessIdDec(sess)+" says: "+arg, false);
-}
-} );
-srvrCommands.put("!", new SrvrCmd() { synchronized public void exec(Session sess, String arg) {
+// ---
+srvrCommands.put("!", new SrvrCmd() { synchronized public void exec(Session sess, String arg)
+{
 	sendMsgToAllListeners("! "+arg, false);
 }
 } );
-srvrCommands.put("/", new SrvrCmd() { synchronized public void exec(Session sess, String arg) {
+// ---
+srvrCommands.put("/", new SrvrCmd() { synchronized public void exec(Session sess, String arg)
+{
 	sendMsgToAllListeners("/ "+arg, false);
 }
 } );
-srvrCommands.put("/ERROR", new SrvrCmd() { synchronized public void exec(Session sess, String arg) {
+// ---
+srvrCommands.put("/ERROR", new SrvrCmd() { synchronized public void exec(Session sess, String arg)
+{
 	sendMsgToAllListeners("/ERROR "+arg, false);
 }
 } );
+// --- TEST commands
+srvrCommands.put("!THROW", new SrvrCmd() { synchronized public void exec(Session sess, String arg) throws Exception
+{
+	throw new Exception("Exception message of TEST command !THROW.");
+}
+} );
 
-}// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+System.out.println(".... "+srvrCommands.keySet().size()+" srvrCommands");
+
+// Commands used by onMessage(...) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 
-synchronized private static boolean isListener(Session s) {
-	//closed or not //FIXME get rid of this
-	return (lstnrSssns.contains(s));
+rootPath = Thread.currentThread().getContextClassLoader().getResource("").getPath();
+System.out.println(".... LogSocketServer path="+rootPath);
+
+try {
+	props.load(new FileReader(rootPath+"LogSocketServer.properties"));
+	System.out.println(".... Loaded file "+rootPath+"LogSocketServer.properties");
+	filter1.addAll( Arrays.asList(blankPttrn.split(props.getProperty("filter1"))) );
+
+} catch (FileNotFoundException e) {
+	try {
+		props.setProperty("filter1", "");
+		props.store(new FileWriter(rootPath+"LogSocketServer.properties"), ">>>>>>>>>> Creating file LogSocketServer.properties <<<<<<<<<<");
+
+	} catch (IOException e1) {
+		System.err.println("!!!! Cannot create file "+rootPath+"LogSocketServer.properties");
+		e1.printStackTrace();
+	}
+
+} catch (IOException e) {
+	e.printStackTrace();
 }
 
 
+
+}// static block <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
+
+
+
 synchronized private static boolean sendTxtToListener(Session sessSendTo, String msg) {
-	// Called by sendMsgToAllListeners(...) and TODO initial handshake
-	// No messing with listeners List here!
+// #3ffba3b DOCU *** The only listener we have right now is the LogSocket Client ***
+// Called by sendMsgToAllListeners(...) and TODO initial handshake
+// No messing with listeners List here!
 	boolean sent = false;
 	
 	if (sessSendTo.isOpen()) {
@@ -453,13 +638,12 @@ synchronized private static boolean sendTxtToListener(Session sessSendTo, String
 			sent = sendText(sessSendTo, msg);
 		} catch (Exception e) {
 			sent = false;
-			//Problem IllegalStateException: The remote endpoint was in state [TEXT_FULL_WRITING] which is an invalid state for called method
+			// FIXME #11811f4b occasional IllegalStateException
+			// IllegalStateException: The remote endpoint was in state [TEXT_FULL_WRITING] which is an invalid state for called method
 			//https://bz.apache.org/bugzilla/show_bug.cgi?id=56026
 			String bla = e.getClass().getName()+" while sending to listener %"+getSessIdDec(sessSendTo)+" "+shortClObjID(sessSendTo);
-;
 			System.err.println("!!!. "+thisClObjID+": sendTxtToListener(...): "+bla+" --- "+e.getMessage());
 			//Another IllegalStateException:
-			// FIXME 11811f4b
 			//.... LogSocketServer@192c7b06: sendText to session=WsSession@11811f4b txt=!GC LogSocketServer garbage collection requested by listener %50
 			//.... LogSocketServer@192c7b06 @OnClose: WsSession@4206879
 			//.... logSocket /14 WsSession@4206879 gone
@@ -474,6 +658,7 @@ synchronized private static boolean sendTxtToListener(Session sessSendTo, String
 }
 
 synchronized private static void sendMsgToAllListeners(String msg, boolean noSrvrBffrng) {
+// #3ffba3b DOCU *** The only listener we have right now is the LogSocket Client ***
 	if(debug) debugMsg(".... "+thisClObjID+": sendMsgToAllListeners  msg="+msg+" hasListeners="+hasListeners);
 
 	if (!hasListeners) { 
@@ -490,7 +675,7 @@ synchronized private static void sendMsgToAllListeners(String msg, boolean noSrv
 				+"\n!!!. Continuing buffering, adding msg="+msg
 		);
 		srvrBuffer.add(msg);
-		return; //FIXME This happened indeed. Perhaps Tomcat reloading context: This almost automatically messes things up. 
+		return;
 	}
 
 	Set<Session> errSessions = new HashSet<Session>();
@@ -510,7 +695,7 @@ public static Integer getSessIdDec (Session s) {
 	// PROBLEM: goes to infinity
 }
 
-synchronized private static boolean sendText(Session s, String txt) {
+synchronized static boolean sendText(Session s, String txt) {
 	if(debug) debugMsg(".... "+thisClObjID+": sendText to session="+shortClObjID(s)+" txt="+txt);
 	//TODO handle error session
 	if (s.isOpen()) {
@@ -529,20 +714,21 @@ synchronized private static boolean sendText(Session s, String txt) {
 }
 	
 
+@SuppressWarnings("unused")
 private static String logSocketsToString() {
-	return logScktSssns.entrySet().stream().map(e -> 
-			"/"+e.getValue()+"="+shortClObjID(e.getKey())
-		).collect( Collectors.joining(", ") );
+	return lgScktSssn2Nr.entrySet().stream().map(e -> 
+			 "/"+e.getValue()+"="+shortClObjID(e.getKey())
+		   ).collect( Collectors.joining(", ") );
 }
 
 private static String timersToString() {
 	return timersStartT.entrySet().stream().map( e -> 
-				e.getKey()+": "+timersDT.get(e.getKey())
-			).collect( Collectors.joining(", ") );
+	         e.getKey()+": "+timersDT.get(e.getKey())
+		   ).collect( Collectors.joining(", ") );
 	// TODO add "running" if timersStartT.get(e.getKey()==-1);
 }
 
-private static String shortClObjID(Object o) {return Stream.of( dotPttrn.split(o.toString())).reduce((first,last)->last).get();}
+
 
 
 // Debug stuff >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -568,7 +754,17 @@ public static String getCaller(int skp)	{
 
 
 
-
+public static class  MyBiMap<K, V> { // "nested class"
+	public  Map<K,V> k_v = new ConcurrentHashMap<K,V>(20);
+	private Map<V,K> v_k = new ConcurrentHashMap<V,K>(20);
+	
+	public synchronized V   put(K key, V value)     { v_k.put(value, key); return k_v.put(key, value); }
+	public V                get(K key)              { return k_v.get(key); }
+	public boolean          containsKey(Object key) { return k_v.containsKey(key); }
+	public synchronized V   remove(Object key)      { V v=k_v.remove(key); v_k.remove(v); return v; }
+	public boolean          isEmpty()               { return k_v.isEmpty();	}
+	public Set<Entry<K, V>> entrySet()              { return k_v.entrySet(); }
+}
 
 
 
@@ -590,31 +786,38 @@ public static class TEST {
 
 }//END class TEST
 
+
+// As of release 1.5, there is a third approach to implementing singletons. Simply make an enum type with one element:
+// [...]
+// This approach is functionally equivalent to the public field approach, except that it is more concise, provides the serialization machinery for free ,
+// and provides an ironclad guarantee against multiple instantiation, even in the face of sophisticated serialization or reflection attacks.
+// While this approach has yet to be widely adopted, a single-element enum type is the best way to implement a singleton.
+
+
+
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 /* Error collection
  * 
-sendMsgToAllListeners("!ERROR 1 Server: \""+msg+"\" ??", false);	
+sendMsgToAllListeners("!ERROR 1 LogSocketServer: \""+msg+"\" ??", false);	
 sendMsgToAllListeners("!ERROR 3: Duplicate: "+lggrShortStr, false);
-sendMsgToAllListeners("!ERROR 2 Server: \""+msg+"\" ??", false);	
-sendMsgToAllListeners("!ERROR 4 Server: !DEL_LGGR: Not found: "+splitMsg[1], false);	
-sendMsgToAllListeners("!ERROR 5 Server: Timer never started", false);
-sendMsgToAllListeners("!ERROR 6 Server: "+sessionClObjID+"neither Listener nor LogSocket", false);
-sendMsgToAllListeners("!ERROR 7 Server: \""+msg+"\" ??", false);
+sendMsgToAllListeners("!ERROR 2 LogSocketServer: \""+msg+"\" ??", false);	
+sendMsgToAllListeners("!ERROR 4 LogSocketServer: !DEL_LGGR: Not found: "+splitMsg[1], false);	
+sendMsgToAllListeners("!ERROR 5 LogSocketServer: Timer never started", false);
+sendMsgToAllListeners("!ERROR 6 LogSocketServer: "+sessionClObjID+"neither Listener nor LogSocket", false);
+sendMsgToAllListeners("!ERROR 7 LogSocketServer: \""+msg+"\" ??", false);
 System.err.println("!... "+thisClObjID+" @OnClose: PROTOCOL ERROR "+sessClObjId+" neither logSocket nor listener");
-sendMsgToAllListeners("!ERROR 9 Server: "+sessionClObjID+" neither Listener nor LogSocket", false);
-sendMsgToAllListeners("!ERROR 10 Server: "+e.getMessage()+" (Syntax Error) msg=\""+msg+"\"", false);
-sendMsgToAllListeners("!ERROR 11 Server: "+e.getMessage()+" (Unknown) msg=\""+msg+"\"", false);
-sendMsgToAllListeners("!ERROR 12 Server: "+e.getMessage()+" (Cannot tell more...) msg=\""+msg+"\"", false);
-sendMsgToAllListeners("!ERROR 13 Server: Unknown command? "+e.getMessage()+" msg=\""+msg+"\"", false);
-sendMsgToAllListeners("!ERROR 15 Server: !MT_REPORT: Syntax Error: "+e.getMessage(), false);
-sendMsgToAllListeners("!ERROR 16 Server: !MT_LOG: Report \""+reportName+"\" not found.", false);
+sendMsgToAllListeners("!ERROR 9 LogSocketServer: "+sessionClObjID+" neither Listener nor LogSocket", false);
+sendMsgToAllListeners("!ERROR 10 LogSocketServer: "+e.getMessage()+" (Syntax Error) msg=\""+msg+"\"", false);
+sendMsgToAllListeners("!ERROR 11 LogSocketServer: "+e.getMessage()+" (Unknown) msg=\""+msg+"\"", false);
+sendMsgToAllListeners("!ERROR 12 LogSocketServer: "+e.getMessage()+" (Cannot tell more...) msg=\""+msg+"\"", false);
+sendMsgToAllListeners("!ERROR 13 LogSocketServer: Unknown command? "+e.getMessage()+" msg=\""+msg+"\"", false);
+sendMsgToAllListeners("!ERROR 15 LogSocketServer: !MT_REPORT: Syntax Error: "+e.getMessage(), false);
+sendMsgToAllListeners("!ERROR 16 LogSocketServer: !MT_LOG: Report \""+reportName+"\" not found.", false);
+sendMsgToAllListeners("!ERROR 17 LogSocketServer: /STOP_L: "+e.getMessage(), false);
+sendText(sess, "!ERROR 18 LogSocketServer.Clock: T0correction("+LogSocketServer.shortClObjID(s)+") not even started");
+"!ERROR 19 );
+LogSocketServer.sendText(sess, "!ERROR 20 LogSocketServer.Clock: tingtongReceiver exception "+e.getClass().getName()+" message: "+ e.getMessage());
 
-
-  * Debug messages deleted from onMessage(Session session, String msg, boolean last)
-debugMsg(1, ".... "+thisClObjID+": @onMessage session="+shortClObjID(session)+" msg="+msg+" last="+last);
-debugMsg(1, "A--- "+"+"+ (-lastMsgT+(lastMsgT=Clock.T())) +"-"+msg.substring(1));
-debugMsg(1, "B--- "+"*"+ (-lastMsgT+(lastMsgT=Clock.T())) +"-"+msg.substring(1));
-debugMsg(1, "C--- "+"+"+ (-lastMsgT+(lastMsgT=Clock.T())) +"-"+msg.substring(1));
 
 
 
