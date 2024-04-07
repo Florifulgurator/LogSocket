@@ -1,4 +1,4 @@
-package javalggr;
+package florifulgurator.logsocket.javalggr;
 
 import java.util.Arrays;
 import java.util.Hashtable;
@@ -10,62 +10,54 @@ public class Lggr {
 	// First 3 fields give an information-rich Logger ID.
 	// Unique for the associated LogSocket.
 	// Including LogSocket.Nr gives global uniqueness.
-	public String realm = "Jv";        // Default realm: Jv=Java
-	public String label;               // 
-	public Integer n2;                 // Realm+Label duplicate number, determined by LogSocket
-	// Caveats: 1) One LogSocket might serve several realms, e.g. Java-logic, Java-servlet, Java-JSP
-	//          2) Distinct LogSockets might represent the same JavaScript page, e.g. in separate browser windows.
-	//          3) Duplicate labels can occur by user choice (resp. error) or by repeated creation at the same place,
-	//             e.g. in a procedure.
-	// Therefore we can only filter for realm and label, and cut off duplicates.
+	public String realm = "Jv";   // Default realm: Jv=Java
+	public String label;          // 
+	public int n2;                // Realm+Label duplicate number, determined by LogSocket
 	//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-	public Integer nr;     	   // Counted by LogSocket. Incl. LogSocket.Nr gives short no-information ID for Listener GUI.
-
-	public boolean on = true;  // Logging switched on/off
-	public int numMsgs = 0;    // Counted by LogSocket
+	public int nr;     	   	       // Counted by LogSocket. Incl. LogSocket.Nr gives short no-information ID for Listener GUI.
+	                               // nr==0 : realm+label listed as stopped/filtered before creation. => no longId, shortId, no finalization registry //DEV #6cb5e491
+	public boolean on = false;     // Logger messages switched on/off: A) when filtered "M" or when B) max log msg count reached
+	public boolean ignore = true;  // When filtered "E" or under construction: No finalize(), ...? //DEV #6cb5e491
+	public int numMsgs = 0;        // Counted by LogSocket
 	public String longId;
-	public String shortId;    // "/"+LogSocket.Nr+"_"+nr null until handshake completed
+	public String shortId;         // "/"+LogSocket.Nr+"_"+nr null until handshake completed // FIXME #12fe3d9c
 	public String comment;
+	
 	public Hashtable<String,Integer> repeatCounters; // log max. n messages as counted by counter logCntrID
 	
-	public int nanoTimerWarmupCntr;
-	public int nanoTimerTickCntr;
-	public int nanoTimerMaxTicks;
-	public long[] nanoTimerTickDiffs;
-	public long nanoTimerLast;
+	public int microTimerWarmupCntr;
+	public int microTimerTickCntr;
+	public int microTimerMaxTicks;
+	public long[] microTimerTickDiffs;
+	public long microTimerLast;
 		
-
-	
-	
 	
 	protected Lggr(String rlm, String lbl, Integer i2, String commnt, Integer n) {
-		//System.out.println("xxx- Lggr: CONSTRUCTOR rlm="+rlm+" lbl="+lbl+" n2"+i2+" nr"+n);
 		realm = rlm; label = lbl; n2 = i2; comment = commnt; nr = n;
-		repeatCounters = new Hashtable<String,Integer> ();
-		makeLggrIdStrings();
+		
+		if (n!=0) {  //DEV #6cb5e491
+			on=true; ignore=false; //TODO JS
+			repeatCounters = new Hashtable<String,Integer> ();
+			LogSocket.makeLggrIdStrings(this);
+		}
 	}
 
-	protected void makeLggrIdStrings() {
-		if ( shortId!=null) {
-			//System.out.println("makeLggrIdStrings DOING NOTHING shortId=" + shortId + " longId=" + longId);
-			return;
-		}
-		
-		if ( n2!=0 ) { longId = realm + "/" + LogSocket.Nr + label + "." + n2.toString();
-		} else       { longId = realm + "/" + LogSocket.Nr + label; }
-		
-		if (LogSocket.Nr!=null) { shortId = "/"+LogSocket.Nr+"_"+nr; }
-	}
-	
 	public String toString() { return longId; } // Should not be used
 	
-	protected void finalize() { //TODO if Nr==null
-		String s = shortId + " "+ realm + "/" + LogSocket.Nr;
-		LogSocket.sendCmd(this, "/GC Garbage collection: Finalizing Logger " + s);
-		LogSocket.sendCmd(this, "!DEL_LGGR " + s);
+	protected void finalize() {
+		if (ignore || nr==0 ) return;  //TODO: Javascript
+		String s = shortId + " " + longId;
+		LogSocket.sendCmd(this, "/GC Finalizing Logger " + s);
+		LogSocket.sendCmd(this, "!GC_LGGR " + s);
 	}
 
+	protected void stop () { // TODO Javascript
+		on = false;
+		if ( nr== 0) return;
+		LogSocket.sendCmd(this, "!STOPPED "+shortId);
+	}
+	
 	
 	// Logger services: >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 	
@@ -82,27 +74,26 @@ public class Lggr {
 	}
 
 	public boolean logC (Integer n, String logCntrID, String msg) {
-		// log max. n messages as counted by counter logCntrID
+		// Log max. n messages as counted by counter logCntrID
+		// When max, stop logger (incl. duplicates TODO #492fd0a4)
 		if (!on) return false;
-		int count = 1;
-		if (repeatCounters.containsKey(logCntrID)) {
-			count = repeatCounters.get(logCntrID);
-			if (++count >= n) on=false;
+		Integer count = repeatCounters.get(logCntrID);
+		repeatCounters.put(logCntrID, (count!=null ? ++count : (count=1)));
+		boolean rtrn = LogSocket.log(this, "["+count+"/"+n+"] "+msg);
+		if (count >= n) {
+			on=false; //LogSocket.stopLggr(realm+label+".*"); //DEV #23e526a3 //TODO #492fd0a4 stop individual 
 		}
-		repeatCounters.put(logCntrID, count);
-		return LogSocket.log(this, "["+count+"/"+n+"] "+msg);
+		return rtrn;
 	}
 
 	public boolean logCM (Integer n, String logCntrID, String msg) {
 		//TODO: Javascript
 		if (!on) return false;
-		int count = 1;
-		if (repeatCounters.containsKey(logCntrID)) {
-			count = repeatCounters.get(logCntrID);
-			if (++count >= n) on=false;
-		}
-		repeatCounters.put(logCntrID, count);
-		return LogSocket.logM(this, "["+count+"/"+n+"] "+msg);
+		Integer count = repeatCounters.get(logCntrID);
+		repeatCounters.put(logCntrID, (count!=null ? ++count : (count=1)));
+		boolean rtrn = LogSocket.logM(this, "["+count+"/"+n+"] "+msg);
+		if (count >= n) on=false; //LogSocket.stopLggr(realm+label+".*"); //DEV #23e526a3 //TODO #492fd0a4 stop individual
+		return rtrn;
 	}
 
 	public boolean logOnce (String msg) {
@@ -118,57 +109,56 @@ public class Lggr {
 	}
 	
 	//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-	// Local unnamed timer for many time measurements between calls to nanoTimerTick(), after a
-	// a number of Warm-up ticks. Initialized by nanoTimerClear(int maxTicks, int warmupTicks).
-	// At the end the results get sent to server in one swoop by nanoTimerReport(String reportName).
+	// Local unnamed timer for many time measurements between calls to microTimerTick(), after a
+	// a number of Warm-up ticks. Initialized by microTimerClear(int maxTicks, int warmupTicks).
+	// At the end the results get sent to server in one swoop by microTimerReport(String reportName).
 	// Server accumulates these results in a named "random variable"
-	// which can be emptied by nanoTimerClearReport(String reportName).
-	// Upon nanoTimerLogReport(String reportName) resp. nanoTimerPostReport(String reportName)
-	// the server draws an ASCII art diagram of the distribution of values and either puts it in the log
-	// or TODO posts it in the log header.
-	// TODO #1f6d462d Check reportName has no whitespace OR: Make sure this wont break it (server).
+	// which can be emptied by microTimerClearReport(String reportName).
+	// Upon microTimerLogReport(String reportName) resp. microTimerPostReport(String reportName)
+	// the server draws an ASCII art diagram of the distribution of values and either puts it in
+	// the log or TODO posts it in the log header.
 
-	public void nanoTimerClear(int maxTicks, int warmupTicks) {
+	public void microTimerClear(int maxTicks, int warmupTicks) {
 		if (maxTicks<=0) {
-			LogSocket.sendCmd(this, "/ERROR nanoTimerClear("+maxTicks+","+warmupTicks+")");
+			LogSocket.sendCmd(this, "/ERROR microTimerClear("+maxTicks+","+warmupTicks+")");
 			maxTicks = 0; warmupTicks = 0;
 		}
-		nanoTimerTickDiffs = new long[maxTicks];
-		nanoTimerMaxTicks = maxTicks;
-		nanoTimerWarmupCntr = warmupTicks;
-		nanoTimerLast = System.nanoTime();
-		nanoTimerTickCntr = 0;
+		microTimerTickDiffs = new long[maxTicks];
+		microTimerMaxTicks = maxTicks;
+		microTimerWarmupCntr = warmupTicks;
+		microTimerLast = System.nanoTime();
+		microTimerTickCntr = 0;
 	}
 	//---	
-	public void nanoTimerTick() {
-		if(nanoTimerWarmupCntr <= 0 ) {
-			if(nanoTimerTickCntr < nanoTimerMaxTicks) {
-				nanoTimerTickDiffs[nanoTimerTickCntr++] = -nanoTimerLast + (nanoTimerLast = System.nanoTime());
+	public void microTimerTick() {
+		if(microTimerWarmupCntr <= 0 ) {
+			if(microTimerTickCntr < microTimerMaxTicks) {
+				microTimerTickDiffs[microTimerTickCntr++] = -microTimerLast + (microTimerLast = System.nanoTime());
 			}
 		} else {
-			nanoTimerWarmupCntr--;
-			nanoTimerLast = System.nanoTime();
+			microTimerWarmupCntr--;
+			microTimerLast = System.nanoTime();
 		}
 	}
 	//---	
-	public void nanoTimerClearReport(String reportName) {
+	public void microTimerClearReport(String reportName) {
 		if (isBadReportName(reportName))  return ;
 		LogSocket.sendCmd(this, "!MT_NEW "+reportName);
 	}
 	//---	
 	// Send results in 1/10 microseconds, to spare bandwidth. Server converts to microseconds.
 	// (The last 2 digits of nanotime are worthless, cf. Clock.java)
-	public int nanoTimerReport(String reportName) {
+	public int microTimerReport(String reportName) {
 		if (isBadReportName(reportName))  return 0;
 		LogSocket.sendCmd(this, "!MT_REPORT "+reportName+" 0.1 "
-		   + Arrays.stream(nanoTimerTickDiffs, 0, nanoTimerTickCntr)
-		   		.map( x-> Math.round((float)x/100.0) )
-		     .mapToObj(String::valueOf).collect(Collectors.joining(" "))
+		   + Arrays.stream(microTimerTickDiffs, 0, microTimerTickCntr)
+		   		   .map( x-> Math.round((float)x/100.0) )
+		           .mapToObj(String::valueOf).collect(Collectors.joining(" "))
 		 );
-		return nanoTimerTickCntr;
+		return microTimerTickCntr;
 	}
 	//---	
-	public void nanoTimerLogReport(String reportName) {
+	public void microTimerLogReport(String reportName) {
 		if (isBadReportName(reportName))  return;
 		LogSocket.logCmd(this, "MT_LOG "+reportName);
 	}
