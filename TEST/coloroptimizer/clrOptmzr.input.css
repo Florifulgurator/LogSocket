@@ -1,0 +1,36 @@
+/* Feeding back the output... */
+
+/* ***************************** */
+/* OUTPUT of clrOptmzr.js:       */
+/* Logger background colors      */
+/* ***************************** */
+/* #sayh */
+/* Fri Mar 01 2024 15:39:22 GMT+0100 (Central European Standard Time) */
+/*  */
+.bgC2 { background-color: rgb(201, 242, 207, 0.83);}
+.bgA2 { background-color: rgb(205, 223, 218, 0.861);}
+.bgM2 { background-color: rgb(183, 236, 227, 0.865);}
+.bgR2 { background-color: rgb(186, 222, 244, 0.866);}
+.bgJ2 { background-color: rgb(204, 208, 253, 0.865);}
+.bgN2 { background-color: rgb(224, 208, 226, 0.863);}
+.bgQ2 { background-color: rgb(244, 212, 207, 0.867);}
+.bgO2 { background-color: rgb(228, 228, 199, 0.864);}
+/* bgX0 == bgX2 without transparency: */
+.bgC0 { background-color: rgb(201, 242, 207);}
+.bgA0 { background-color: rgb(205, 223, 218);}
+.bgM0 { background-color: rgb(183, 236, 227);}
+.bgR0 { background-color: rgb(186, 222, 244);}
+.bgJ0 { background-color: rgb(204, 208, 253);}
+.bgN0 { background-color: rgb(224, 208, 226);}
+.bgQ0 { background-color: rgb(244, 212, 207);}
+.bgO0 { background-color: rgb(228, 228, 199);}
+/* bgX1 == no-transparency RGB from bgX2 being transparent on white: */
+.bgC1 { background-color: rgb(208, 244, 214);}
+.bgA1 { background-color: rgb(212, 227, 223);}
+.bgM1 { background-color: rgb(193, 239, 231);}
+.bgR1 { background-color: rgb(195, 226, 245);}
+.bgJ1 { background-color: rgb(211, 214, 253);}
+.bgN1 { background-color: rgb(228, 215, 230);}
+.bgQ1 { background-color: rgb(245, 218, 214);}
+.bgO1 { background-color: rgb(231, 232, 206);}
+/* END OUTPUT of clrOptmzr.js <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< */

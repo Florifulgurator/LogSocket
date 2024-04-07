@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<title>Insert title here</title>
+	
+	<link rel="stylesheet" href="./clrOptmzr.input.css" type="text/css"><!-- JS assumes exactly one CSS file loaded -->
+	
+	<script defer type="text/javascript" src="JavaScriptLggr/LogSocket.js"></script>
+	<script defer type="text/javascript" src="clrOptmzr.js"></script>
+	
+	<style>
+:root {	background-color: rgb(0, 0, 0);	color: white; }
+#transpID {	background-color:white;	color: black; }
+.tbl { border-spacing: 0px; }
+	</style>
+	
+</head>
+<body>
+
+<!-- /* bgX2: Source of bgX1 (rgb only) and bgX0 (rgb + Tr on white) */ -->
+
+<h1>Color Optimizer</h1>
+<h2>Stripes:</h2>
+<h3>Transparency on White</h3>
+
+<table class="tbl">
+	<tr id="trID"><td>colors2[i].tr</td><!-- [JS] --></tr> 
+	<tr id="nameID"><td>colors0[i].name</td><!-- [JS] --></tr> 
+	<tr id="transpID"><td>colors2[i] transp</td><!-- [JS] --></tr> 
+	<tr id="bg1ClrsID"><td>bgX1</td><!-- [JS] --></tr>
+	<tr id="bg0ClrsID"><td>bgX0</td><!-- [JS] --></tr> 
+	
+	<tr id="distID"><td>rgbDist(colors0[i],colors1[i])</td><!-- [JS] --></tr>
+	<tr id="distRgb2TrID"><td>rgbDist colors2[i] transp</td><!-- [JS] --></tr>
+	<tr id="dist2BlackID"><td>rgbDist colors0[i] black</td><!-- [JS] --></tr>
+	<tr id="dist2WhiteID"><td>rgbDist colors0[i] white</td><!-- [JS] --></tr>
+	<tr id="dist2AllID"><td>distTr colors2[i] all</td><!-- [JS] --></tr>
+	
+</table>
+
+<input onclick="_optimize(200)" value="_optimize(200)" type="button">
+<input onclick="print2Console()" value="console.log CSS from colors2[]" type="button">
+
+
+</body>
+</html>
