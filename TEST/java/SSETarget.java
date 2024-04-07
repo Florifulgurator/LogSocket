@@ -15,16 +15,16 @@
 │0 Jv/1#SSEBroadcaster #broadcast#EXCEPTION:  "java.io.IOException: An established connection was aborted by the software in your host machine"
 */
 
+import java.io.IOException;
+
 import javax.servlet.AsyncContext;
 import javax.servlet.AsyncEvent;
 import javax.servlet.AsyncListener;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import javalggr.Lggr;
-import javalggr.LogSocket;
-
-import java.io.IOException;
+import florifulgurator.logsocket.javalggr.Lggr;
+import florifulgurator.logsocket.javalggr.LogSocket;
 
 /**
  * SSE dispatcher for one-to-one connections from Server to client-side subscriber
@@ -138,7 +138,7 @@ public class SSETarget {
     }
 
     private class AsyncListenerImpl implements AsyncListener {
-    	private Lggr l2 = LogSocket.newLggr("Jv", "#SSETarget.AsyncListenerImpl");
+    	private Lggr l2 = LogSocket.newLggr("Jv", "#SSETarget#AsyncListenerImpl");
         @Override
         public void onComplete(AsyncEvent event) throws IOException {
         	l2.log("#AsyncListenerImpl onComplete "+LogSocket.shortClObjID(event));

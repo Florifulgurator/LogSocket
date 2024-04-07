@@ -5,8 +5,10 @@ import java.util.Iterator;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-import javalggr.Lggr;
-import javalggr.LogSocket;
+import org.w3c.dom.events.EventTarget;
+
+import florifulgurator.logsocket.javalggr.Lggr;
+import florifulgurator.logsocket.javalggr.LogSocket;
 
 
 /**

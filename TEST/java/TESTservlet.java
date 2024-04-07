@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebInitParam;
@@ -17,8 +18,8 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import javalggr.Lggr;
-import javalggr.LogSocket;
+import florifulgurator.logsocket.javalggr.Lggr;
+import florifulgurator.logsocket.javalggr.LogSocket;
 
 
 @WebServlet(
@@ -152,11 +153,11 @@ public class TESTservlet extends HttpServlet {
             	String text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
             	              + " -- "
             	              + "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
-            	l2.nanoTimerClear(i-125, 125);//TODO JavaScript nanoTimer for comparability
+            	l2.microTimerClear(i-125, 125);//TODO JavaScript microTimer for comparability
             	l2.timerStart("JavaLoop");
-        			while(--i >= 0) { l2.log(text); l2.nanoTimerTick(); }
+        			while(--i >= 0) { l2.log(text); l2.microTimerTick(); }
             	l2.timerStop("JavaLoop");
-            	l2.nanoTimerReport("JavaLoopNano"); l2.nanoTimerLogReport("JavaLoopNano");
+            	l2.microTimerReport("JavaLoopMicro"); l2.microTimerLogReport("JavaLoopMicro");
             	// Results:
 	            	
      		} else if ( cmd[1].equals("thread") ) {
