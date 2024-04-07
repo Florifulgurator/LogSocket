@@ -1,3 +1,4 @@
+//FIXME rename file to TESTjsp.js
 //servletURL set by JSP
 
 var Empty = {}; //Emptiness is difficult in Javascript...
@@ -16,33 +17,51 @@ const lg0 = LogSocket.newLggr(realm, "#PAGE", "Test page log");
 
 // Tests >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-const lg1 = LogSocket.newLggr(realm, "#TEST#MOUSEENTER", "Lorem ipsum");
+const lg1 = LogSocket.newLggr(realm, "#TEST#MOUSEENTER");
 const lg2 = LogSocket.newLggr(realm, "#TEST#EVENTSOURCE", "JS EventSource, receives ServerSentEvents from Servlet");
 const lg3 = LogSocket.newLggr(realm, "#TEST#XMLHttpRequest", "POST to Servlet");
 //const lg4 = LogSocket.newLggr(realm, "#TEST#JSLOOP", `JavaScript TEST: ${loop} quick Lorem Ipsums x2`);
 
+
 function mouseEnter(ev) {
 	if (!mouseLogOn) return;
 	if (colorTestLggrs==Empty) {
-		lg1.log(`${ev.target.innerText} ${++mouseLogcounter} ${text}`);
+		lg1.log(`${++mouseLogcounter} ${ev.target.textContent}`);
 	} else {
-		for (var i=0, n=Math.round(Math.random()*4); i<=n; i++)
+		for (let i=0, n=Math.round(Math.random()*3); i<=n; i++)
 			colorTestLggrs[ev.target.classList[1]].log(
-				`${ev.target.innerText} ${++mouseLogcounter} ${i!=0?"REPETITION"+i:""} ${text}`
+				`${++mouseLogcounter} ${i!=0?"Random repeat "+i:""} ${ev.target.textContent} ${text}`
 			);
 	}	
 } 
 
+
 function JSLoop() {
 	const lg4 = LogSocket.newLggr(realm, "#TEST#JSLOOP", `JavaScript TEST: ${loop} quick Lorem Ipsums x2`);
-	var i = loop, startT=Date.now();
+	var i = 0, startT=Date.now();
 	
 	lg4.timerStart("JSLoop");
-	while (--i >= 0) {
+	while (++i <= loop) {
 		lg4.log(`${i} ${text} -- ${text}`);
 	}
 	lg4.timerStop("JSLoop");
 }
+
+
+function duplicateLoop1() {
+	var l = [];
+	for (let i=0; i<20; i++) {
+		l[i] = LogSocket.newLggr(realm, "#TEST#DUPLICATELOOP1", `Element ${i} of local array[20] of "same" loggers`);
+	}
+}
+//---
+var duplicates = [];
+function duplicateLoop2() {
+	for (let i=0; i<20; i++) {
+		duplicates[i] = LogSocket.newLggr(realm, "#TEST#DUPLICATELOOP2", `Element ${i} of global array[20] of "same" loggers`);
+	}
+}
+
 
 function JavaLoop() {
 	const xhr = new XMLHttpRequest();
@@ -166,9 +185,9 @@ function colorTestDestroy() {
 
 function init() {
 	
-	document.getElementById("loopNrID1").innerText = loop;
-	document.getElementById("loopNrID2").innerText = loop;
-	document.getElementById("loopNrID3").innerText = loop;
+	document.getElementById("loopNrID1").textContent = loop;
+	document.getElementById("loopNrID2").textContent = loop;
+	document.getElementById("loopNrID3").textContent = loop;
 	document.getElementById("mouseEnterLogID").firstChild.checked = mouseLogOn;
 	
 	testLogEl = document.getElementById("testlogID");

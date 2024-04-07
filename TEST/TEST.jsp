@@ -1,6 +1,6 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
-<%@ page import="javalggr.LogSocket" %>
-<%@ page import="javalggr.Lggr" %>
+<%@ page import="florifulgurator.logsocket.javalggr.LogSocket" %>
+<%@ page import="florifulgurator.logsocket.javalggr.Lggr" %>
 <%@ page import="java.util.Arrays" %>
 <%@ page import="java.util.stream.Collectors" %>
 
@@ -11,15 +11,16 @@
 <%@ page import="java.util.stream.StreamSupport" %>
 
 
-<%!	boolean testLggrOK = LogSocket.newLggr("Jsp", "#HELLOWORLD", "Throwaway logger in declaration")
-	                      .log("!!!!!!!!!!!!!!!! Hello World !!!!!!!!!!!!!!!!");
+<%!	boolean testLggrOK = LogSocket.newLggr("Jsp", "#HELLOWORLD", "(UTF-8 test: 👁↑) Throwaway logger in declaration")
+	                      .log("!!!!!!!!!!!!!!!! Hello World !!!!!!!!!!!!!!!! (UTF-8 test: 👁↑ -- Oversized? Check line height.)");
 	//Lggr lggr1 = LogSocket.newLggr("Jsp", "#MAINLGGR", "Created at compileTime="+compileTime);
 	// 4 Errors: lggr1.log("Hello World");
 	
 	Integer crtrNr = 0; // TODO  = LogSocket.newCreatorNr("Jsp")
 	String servletURL = "./TESTservlet";
 	String text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
-	String text2 = "https://www.bobrosslipsum.com/ Only eight lorem ipsum colors that you need. If you dont like it - change it. It is your world. Life is too short to be alone, too precious. Share it with a friend. Volunteering your time; it pays you and your whole community fantastic dividends. Automatically, all of these beautiful, beautiful things will happen. We spend so much of our life looking - but never seeing. We need dark in order to show light. In your imagination you can go anywhere you want. Every time you practice, you learn more. This present moment is perfect simply due to the fact you are experiencing it. There are no mistakes. You can fix anything that happens.";
+	String text2 = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
+//	String text2 = "https://www.bobrosslipsum.com/ Only eight lorem ipsum colors that you need. If you dont like it - change it. It is your world. Life is too short to be alone, too precious. Share it with a friend. Volunteering your time; it pays you and your whole community fantastic dividends. Automatically, all of these beautiful, beautiful things will happen. We spend so much of our life looking - but never seeing. We need dark in order to show light. In your imagination you can go anywhere you want. Every time you practice, you learn more. This present moment is perfect simply due to the fact you are experiencing it. There are no mistakes. You can fix anything that happens.";
 
 	String requestHeadersToString(HttpServletRequest r) { // getHeaderNames() => Enumeration<String>
 		Stream<String> str = StreamSupport.stream(Spliterators.spliteratorUnknownSize(r.getHeaderNames().asIterator(), Spliterator.ORDERED),false);
@@ -35,8 +36,8 @@
 <% 	crtrNr++;
 
 	Lggr lggr1 = LogSocket.newLggr(this, "Jsp", "#INSTANCE"+crtrNr+"#MAINLGGR");
-	lggr1.logM("Request headers="+requestHeadersToString(request));
-	lggr1.log("... Compile time logger has logged == "+testLggrOK);
+	lggr1.logM("Request headers: "+requestHeadersToString(request));
+	if(!testLggrOK) lggr1.logErr("Compile time logger has not logged");
 	lggr1.log("... Setting COOP and COEP HTTP headers to allow JavaScript precision timer. See JS log for result.");
 
 	response.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
@@ -75,26 +76,42 @@
 	<style>
 		.a:hover {outline: solid;}
 		#testlogID {outline: solid;}
-
-/* Copied from socklog.css */
-/* Loggers. Single Letters A-Z only. TODO: get rid of opacity */
-
-.bgC0 { background-color: rgb(218, 240, 217);}
-/* .bgC1 { background-color: rgb(218, 240, 217, 0.69);} */
-.bgA0 { background-color: rgb(230, 231, 242);}
-/* .bgA1 { background-color: rgb(230, 231, 242, 0.70);} */
-.bgB0 { background-color: rgb(202, 226, 249);}
-/* .bgB1 { background-color: rgb(202, 226, 249, 0.78);} */
-.bgR0 { background-color: rgb(200, 200, 255);} 
-/* .bgR1 { background-color: rgb(200, 200, 255, 0.83);} */
-.bgJ0 { background-color: rgb(245, 201, 238);}
-/* .bgJ1 { background-color: rgb(245, 201, 238, 0.80);} */
-.bgN0 { background-color: rgb(231, 219, 232);} 
-/* .bgN1 { background-color: rgb(231, 219, 232, 0.77);} */
-.bgQ0 { background-color: rgb(238, 225, 176);} 
-/* .bgQ1 { background-color: rgb(238, 225, 176, 0.80);}  */
-.bgO0 { background-color: rgb(242, 209, 183);} 
-/* .bgO1 { background-color: rgb(242, 209, 183, 0.80);}  */		
+/* To see the logger colors close together: */
+/* COPYPASTE #7eb9e155 from client.css Only bg[A-Z]0 is used*/
+/* ***************************** */
+/* OUTPUT of clrOptmzr.js:       */
+/* Logger background colors      */
+/* ***************************** */
+/* #g968 */
+/* Fri Mar 01 2024 15:46:32 GMT+0100 (Central European Standard Time) */
+/* M odifications */
+.bgC2 { background-color: rgb(201, 242, 207, 0.81);} /*M*/
+.bgA2 { background-color: rgb(205, 223, 218, 0.863);}
+.bgM2 { background-color: rgb(183, 236, 227, 0.867);}
+.bgR2 { background-color: rgb(186, 222, 244, 0.867);}
+.bgJ2 { background-color: rgb(204, 208, 253, 0.867);}
+.bgN2 { background-color: rgb(224, 208, 226, 0.863);}
+.bgQ2 { background-color: rgb(244, 212, 207, 0.867);}
+.bgO2 { background-color: rgb(228, 228, 199, 0.863);}
+/* bgX0 == bgX2 without transparency: */
+.bgC0 { background-color: rgb(201, 242, 207);}
+.bgA0 { background-color: rgb(205, 223, 218);}
+.bgM0 { background-color: rgb(183, 236, 227);}
+.bgR0 { background-color: rgb(186, 222, 244);}
+.bgJ0 { background-color: rgb(204, 208, 253);}
+.bgN0 { background-color: rgb(224, 208, 226);}
+.bgQ0 { background-color: rgb(244, 212, 207);}
+.bgO0 { background-color: rgb(228, 228, 199);}
+/* bgX1 == no-transparency RGB from bgX2 being transparent on white: */
+.bgC1 { background-color: rgb(210, 244, 215);}
+.bgA1 { background-color: rgb(212, 227, 223);}
+.bgM1 { background-color: rgb(193, 239, 231);}
+.bgR1 { background-color: rgb(195, 226, 245);}
+.bgJ1 { background-color: rgb(211, 214, 253);}
+.bgN1 { background-color: rgb(228, 214, 230);}
+.bgQ1 { background-color: rgb(245, 218, 213);}
+.bgO1 { background-color: rgb(232, 232, 207);}
+/* END OUTPUT of clrOptmzr.js <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< */
 
 	</style>	
 </head>
@@ -104,6 +121,8 @@
 
 <h1>LogSocket Test Page</h1>
 
+Testing Tomcat UTF-8 issue: "👁↑" (=&uarr;&uarr;&uarr;?...) 
+Oversized UTF-8 "👁↑" to be sent by #HELLOWORLD and #UTFTEST loggers.
 
 <h2>  ~&nbsp;Pure JavaScript loggers&nbsp;~</h2>
 <hr><!-- ----------------------------------------------------------------- -->
@@ -116,12 +135,24 @@ loggers of differently colored realms to test output colors.
 	Log <tt>mouseenter</tt> event on each word:
 </label>
 
-<p><%= spanText %> -- <%= spanText2 %></p>
+<p><%= spanText %> <br> <%= spanText2 %></p>
 
 <hr><!-- ----------------------------------------------------------------- -->
 
 <input onclick="JSLoop()" id="JSLoopID" value="JSLoop()" type="button">
 Loop <span id="loopNrID1">???</span> x 2 Lorem Ipsum logs from JavaScript.
+
+<hr><!-- ----------------------------------------------------------------- -->
+
+Testing garbage collection and weak reference things:
+<br>
+<input onclick="duplicateLoop1()" value="duplicateLoop1()" type="button">
+Create local array[20] of "same" loggers
+<br>
+<input onclick="duplicateLoop2()" value="duplicateLoop2()" type="button">
+Create global array[20] of "same" loggers
+<input onclick="duplicates=[]" value="duplicates=[]" type="button">
+
 
 
 <hr><!-- ----------------------------------------------------------------- -->
@@ -172,6 +203,11 @@ N.B.: https://develotters.com/posts/how-not-to-measure-elapsed-time/
 		l2.log("Cookies: "+ Arrays.stream(request.getCookies()).map(c -> c.getName()+"="+c.getValue()).collect(Collectors.joining(", ")));
 	else
 		l2.log("No Cookies");
+		
+	Lggr l3 = LogSocket.newLggr("Jsp", "#UTFTEST", "UTF-8 test: 👁↑💬 -- Oversized? Check line height.");
+	l3.log("UTF-8 test 1: 👁↑ -- Oversized? Check line height.");
+	l3.log("UTF-8 test 2: …💬 ");
+
 %>
 
 Adding Cookies: <br>
@@ -185,11 +221,11 @@ Adding Cookies: <br>
 
 
 UTF-8 Symbols:
-💬 ▼▲/ 📄 / 🕮 / 🖵 / 🖹 / 🗈 / 🗩 / 👁 / ☝ / ❏ / … / &#9746; / &#9776;
-⧌
+↑💬 ▼▲ / 📄 / 🕮 / 🖵 / 🖹 / 🗈 / 🗩 / 👁 / ☝ / ❏ / … / &#9746; / &#9776;
+⧌ / 🡅 / ↑ / ☒ /
 ⅒AAAAA
 ½BBBBBB
 ⅒CCCCCC&#8530;	
-
+↑ Not quite monospaced!
 
 </body><% lggr1.log(" HTML tag close"); %></html>
