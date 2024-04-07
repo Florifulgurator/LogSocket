@@ -9,6 +9,9 @@ package florifulgurator.logsocket.YSeq;
 // then do lggrList.add(Tuple.of(n2, new WeakReference<Lggr>(newLggr)))
 // Only later, when reading we need TupleObject<Integer,WeakReference<Lggr>> tpo = tuple.toObject()
 
+// A Consumer of Biconsumers might look weird, but there is a fundamental abstract principle behind it:
+// The mathematician might be reminded of the canonical map from a space to its double dual,
+// and the physicist of the triad of states, observables, measurements.
 
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -16,7 +19,6 @@ import java.util.function.BiFunction;
 
 public interface Tuple<S, T> {
     void consume(BiConsumer<S, T> consumer);
-        
  
     static <S, T> Tuple<S, T> of(S s, T t) {
     	return bc -> bc.accept(s, t) ;
@@ -71,9 +73,6 @@ public interface Tuple<S, T> {
 			System.out.println("30° counterclockwise: ("+tpo.t1+", "+tpo.t2+")");
 			System.out.println("90° counterclockwise:  "+ rot30(rot30(rot30(xy))).bakeToString());
 			System.out.println("180° counterclockwise: "+ rot30(rot30(rot30(rot30(rot30(rot30(xy)))))).bakeToString());
-		
+		}
 	}
-
-}
-
 }
