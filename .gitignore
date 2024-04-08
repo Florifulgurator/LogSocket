@@ -1,3 +1,8 @@
 
 *.bak
 LOCAL_STUFF/
+TEST/.classpath
+TEST/.project
+TEST/.settings/.jsdtscope
+TEST/.settings/org.eclipse.wst.jsdt.ui.superType.container
+TEST/.settings/org.eclipse.wst.jsdt.ui.superType.name

@@ -43,6 +43,14 @@ public interface Tuple<S, T> {
 	}
 
 
+//	default boolean equals(Tuple<S,T> tpl) {
+//		boolean ret[] = {false};
+//		TupleObject<S, T> dto = tpl.toObject();
+//		consume( (s,t)-> { ret[0] = s.equals(dto.t1) && t.equals(dto.t2); } );
+//		return ret[0];
+//	}
+	
+
 	default String bakeToString() { // toString() not possible in interface
 		String[] Str = {""};
 		consume( (s,t)->{ Str[0] = "("+s+", "+t+")"; } );
@@ -73,6 +81,15 @@ public interface Tuple<S, T> {
 			System.out.println("30° counterclockwise: ("+tpo.t1+", "+tpo.t2+")");
 			System.out.println("90° counterclockwise:  "+ rot30(rot30(rot30(xy))).bakeToString());
 			System.out.println("180° counterclockwise: "+ rot30(rot30(rot30(rot30(rot30(rot30(xy)))))).bakeToString());
+
+			Tuple<Double,Double> xy2 = Tuple.of(1.0, 0.0);
+			System.out.println("xy.equals(xy2) "+xy.equals(xy2));
+			Tuple<String,String> lala = Tuple.of("la","lo");
+			Tuple<String,String> lala2 = Tuple.of("la","lo");
+			System.out.println("lala.equals(lala2) "+lala.equals(lala2));
+
+			
+			
 		}
 	}
 }
