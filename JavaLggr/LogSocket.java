@@ -1,9 +1,9 @@
 package florifulgurator.logsocket.javalggr;
 
-import florifulgurator.logsocket.YSeq.Tuple;
-import florifulgurator.logsocket.YSeq.Tuple.TupleObject;
+import florifulgurator.logsocket.utils.Tuple;
 
 import javax.websocket.Session;
+
 
 import java.io.IOException;
 import java.lang.ref.WeakReference;
@@ -122,7 +122,7 @@ static public void onMessage(String msg, Session sess) {
 	case "/FILTER1_ADD":
 		for( String ruleStr : blankPttrn.split(cmd[1]) ) {
 			try {
-				Filter.applyRule( Filter.parseAdd(ruleStr) );
+				Filter.applyRule( Filter.parseRuleString(ruleStr) );
 				
 			} catch(FilterError e) {// Rule already exists
 				complain("LogSocket_ERROR_17: "+e.getMessage());
@@ -180,7 +180,7 @@ public static Lggr newLggr(String realm, String label, String comment) { // labe
 	String checkedRealmLabel = checkedRealm + (checkedLabel=illglLblChrsPttrn.matcher(checkedLabel).replaceAll(""));
 
 	String filtered;
-	if ( "C".equals( filtered=filteredRealmLabel.get(checkedRealmLabel) ) ) { //DOCU filter1 //DEV #6cb5e491
+	if ( "E".equals( filtered=filteredRealmLabel.get(checkedRealmLabel) ) ) { //DOCU filter1 //DEV #6cb5e491
 		System.out.println("newLggr FILTERED on creation: "+checkedRealm+" "+checkedLabel+" "+comment+( checkedRealmLabel.equals(realm+label) ? "" : " [REAL/LABEL CORRECTED]" ));  //DIAGN
 		return new Lggr(checkedRealm, checkedLabel, 0, "", 0);
 	}
@@ -203,12 +203,11 @@ public static Lggr newLggr(String realm, String label, String comment) { // labe
 		} else {
 			// TODO #74bf4bb Async check WeakRefs, notify Client if any are gone, cleanup list
 			// TODO Notify cleanup daemon
-			//exctrService.execute( () -> { // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+			//exctrService.execute( () -> { 
 			//	synchronized(realmLabel2LggrList) {
 					lggrList.removeIf( tpl -> {
-						TupleObject<Integer,WeakReference<Lggr>> tpo = tpl.toObject();
-						if (tpo.t2.get()==null) {
-							complain("TODO #74bf4bb lggr "+checkedRealmLabel+";"+tpo.t1+" is gone.");
+						if (tpl.t2.get()==null) {
+							complain("TODO #74bf4bb lggr "+checkedRealmLabel+";"+tpl.t1+" is gone.");
 							//...
 							return true;
 						}
@@ -239,7 +238,7 @@ public static Lggr newLggr(String realm, String label, String comment) { // labe
 		);
 		newLggr.on = !"M".equals(filtered); //DOCU filter1 //DEV #6cb5e491
 		if (!newLggr.on) System.out.println("newLggr created no-messages FILTERED "+checkedRealm+" "+checkedLabel+" "+comment); //DIAGN
-		lggrList.add(Tuple.of(n2, new WeakReference<Lggr>(newLggr))); 
+		lggrList.add(new Tuple<Integer, WeakReference<Lggr>>(n2, new WeakReference<Lggr>(newLggr))); 
 
 	}
 

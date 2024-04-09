@@ -71,7 +71,7 @@ public interface Tuple<S, T> {
 
 		public static void main(String[] args) {
 
-			System.out.println(">>>>>>>>>> Testing Tuple >>>>>>>>>>\n");
+			System.out.println(">>>>>>>>>> Testing Seq Tuple >>>>>>>>>>\n");
 		
 			Tuple<Double,Double> xy = Tuple.of(1.0, 0.0);
 			Tuple<Double,Double> rot30xy = rot30(xy);

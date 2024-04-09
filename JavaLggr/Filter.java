@@ -1,7 +1,7 @@
 package florifulgurator.logsocket.javalggr;
 
 import static florifulgurator.logsocket.utils.MGutils.*;
-import florifulgurator.logsocket.YSeq.Tuple;
+import florifulgurator.logsocket.utils.Tuple;
 
 import java.io.IOException;
 import java.lang.ref.WeakReference;
@@ -19,16 +19,20 @@ import java.util.stream.Collectors;
 public class Filter {
 
 public static record Rule(String realm, String[] labels, String strength) {
-	public String toString() {
-		return (realm==null ? "*" : realm) + ">"
-		+ (labels==null ? "*" : Arrays.stream(labels).collect(Collectors.joining("&"))) + "="
-		+ strength;
-	}
+	public String toString() { return (realm==null?"*":realm) + ">"	+ (labels==null?"*":Arrays.stream(labels).collect(Collectors.joining("&"))) + "="	+ strength;	}
+	public String toString2() {	return (realm==null?"":realm) + (labels==null?"":Arrays.stream(labels).collect(Collectors.joining("")) ); }
+
 }
 
-//DEV #6cb5e491
-static Set<Rule>                         rules = new LinkedHashSet<>(); // insertion order to keep things tidy
-static Map<String, LinkedHashSet<Rule>>  label2ruleSet = new ConcurrentHashMap<>(); // to accelerate filter
+static Set<String>                       rules = new LinkedHashSet<>(); // insertion order to keep things tidy
+
+public static class LookupNode<T> {
+	public Set<T> results;
+	public Map<String, LookupNode<T>> more;
+}
+static Map<String, LookupNode<WeakReference<Lggr>>> lggrForest = new ConcurrentHashMap<>();
+static Map<String, LookupNode<Rule>> ruleForest = new ConcurrentHashMap<>();
+
 
 // DOCU Rule string syntax:
 // realm>#label1#label12&label3=M  // #label1#label12 treated as one label. "M" ignore *M*essages, but track existence and make ID
@@ -36,7 +40,7 @@ static Map<String, LinkedHashSet<Rule>>  label2ruleSet = new ConcurrentHashMap<>
 // rlm>*=M
 
 
-static Rule parseAdd(String ruleStr) {
+static Rule parseRuleString(String ruleStr) {
 	int a = ruleStr.indexOf('>');
 	int b = ruleStr.indexOf('=');
 	// Bug safety:
@@ -45,34 +49,56 @@ static Rule parseAdd(String ruleStr) {
 	if (a+1>=b) throw new FilterRuleError("Error3 "+ruleStr);
 	if (b==ruleStr.length()-1) throw new FilterRuleError("Error5 "+ruleStr);
 
+	// Split labels and sort:
 	String[] lblL = null;
 	if (ruleStr.charAt(a+1)!='*') {
 		if (ruleStr.charAt(a+1)!='#') throw new FilterRuleError("Error4 "+ruleStr);
 		lblL = ruleStr.substring(a+1, b).split("&");
-		Arrays.sort(lblL);
-		//Duplicates allowed. Generator of rule is responsible for uniqueness. 
-	}	
-	
+		Arrays.sort(lblL);	//Duplicates allowed. Generator of rule is responsible for uniqueness. 
+	}
+
+	// New rule:
 	Rule rule = new Rule(
 		(a==1&&ruleStr.charAt(1)=='*') ? null : ruleStr.substring(0, a-1),
 		lblL,
 		ruleStr.substring(b+1)
 	);
-	if (!rules.add(rule)) throw new FilterError("Filter rule "+ruleStr+" already exists: "+rule);
+	// really new?
+	String ruleString2 = rule.toString2();
+	if (!rules.add(ruleString2)) throw new FilterError("Filter rule "+ruleStr+" already exists: "+rule);
 	
+	// Add to lookup accelerator:
+	// (Could be extra method, but lblL already there.)
+	String rlm = (rule.realm==null ? "" : rule.realm);
+	String firstRlmLbl = rlm+(lblL!=null?lblL[0]:"");
+	
+	LookupNode<Rule> node = ruleForest.get(firstRlmLbl);
+	if (node==null) {
+		node = new LookupNode<Rule>();
+		ruleForest.put(firstRlmLbl, node);
+	}
 	if (lblL!=null) {
-		// Add labels to accelerator 1
-		for(String lbl: lblL) {
-			LinkedHashSet<Rule> ruleSet = label2ruleSet.get(lbl);
-			if (ruleSet==null) {
-				ruleSet = new LinkedHashSet<Rule>();
-				label2ruleSet.put(lbl, ruleSet);
+		for(int i=1; i<lblL.length; i++) {
+			LookupNode<Rule> nextNode;
+			if (node.more==null) {
+				node.more = new ConcurrentHashMap<>();
+				node.more.put( lblL[i], node = new LookupNode<Rule>() );
+			} else if ( null== (nextNode=node.more.get(lblL[i])) ) {
+				node.more.put( lblL[i], node = new LookupNode<Rule>() );
+			} else {
+				node = nextNode;
 			}
-			ruleSet.add(rule);
 		}
 	}
+	if (node.results==null) { node.results = new LinkedHashSet<>(); }
+	node.results.add(rule);
 	
 	return rule;
+}
+
+static void registerLggr(Lggr lgr) {
+
+
 }
 
 
@@ -100,7 +126,7 @@ static void applyRule(Rule rule) { //DEV #23e526a3  //DEV #6cb5e491
 		}
 		
 		for (Tuple<Integer,WeakReference<Lggr>> tpl : lggrList) {
-			Lggr l = tpl.toObject().t2.get();
+			Lggr l = tpl.t2.get();
 			if ( l!=null ) {
 				if ( l.on ) {
 					l.on=false;
