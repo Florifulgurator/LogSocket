@@ -1,4 +1,4 @@
-package florifulgurator.logsocket.YSeq;
+package florifulgurator.logsocket.yseq;
 // Since a "Seq" aleady exists in Scala and jOOQ I name the package "YSeq" after the @author Lei Wen (Yilai).
 
 // TEST/Example with Fibonacci series below.

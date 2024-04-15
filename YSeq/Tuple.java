@@ -1,4 +1,4 @@
-package florifulgurator.logsocket.YSeq;
+package florifulgurator.logsocket.yseq;
 
 // Inspired by https://www.alibabacloud.com/blog/a-new-stream-adding-the-generator-feature-to-java_600593
 // which actually is also about "adding the tuple feature to Java",
