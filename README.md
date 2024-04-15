@@ -1,11 +1,9 @@
 # LogSocket
 ~ My cross-platform diagnostics logging tool ~
 
-Just starting with GitHub...
+Demonstrable version coming soon...
 
-The whole Thing (if it is one) started as a wild programming exercise in late September 2023. I wanted to get fluent again after some years of hiatus and try out everything except databases. Java has evolved significantly since my last time and starts to become fun even for an old Perl aficionado. The JavaScript machine became at least half as fast as Java. Time to take this language (functional programming) more seriously, do some comparative linguistics and revisit some basic Java-JavaScript-WWW technology...
-
-The exercise consists of a hybrid of the chat server pattern and the logger pattern, plus, a helpful user interface for big monospaced plain text in technicolor. -- The latter was my first motivation: Merging logger streams in terminal windows is nothing new since the early days of Unix. Putting diagnostics print messages in code has been frowned upon since the C debugger with kernel dumps... But the user interfaces are still lacking. To see the trees in the forest of diagnostics text we need to color them. The diversity of trees requires a label system beyond the log levels of RFC 5424 (TRACE, DEBUG, INFO, WARN, ERROR).
+The whole Thing (if it is one) started as a wild programming exercise in late September 2023. I wanted to get fluent again after some years of hiatus and try out everything, from CSS to JavaScript to Java - except databases. The exercise consists of a hybrid of the chat server pattern and the logger pattern, plus, a helpful user interface for big monospaced plain text in technicolor.
 
 A nice experimental result is the Erlang distribution in situ, which was first found for early telephone systems and also looks valid in my 3-websocket system: This sample uses a plain java.net.http.WebSocket logger, a Tomcat javax.websocket server, and a JavaScript websocket client in a Chrome browser window in an elderly laptop. (A javax.websocket logger at a 2nd Tomcat is half as fast, with a similar looking distribution. TODO: Try TooTallNate's org.java_websocket, perhaps minimize for logger.)
 ```
