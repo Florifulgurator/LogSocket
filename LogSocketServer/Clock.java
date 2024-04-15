@@ -3,8 +3,8 @@ package florifulgurator.logsocket.server;
 // "A man with a watch knows what time it is. A man with two watches is never sure."
 
 import static florifulgurator.logsocket.utils.MGutils.*;
-import florifulgurator.logsocket.YSeq.Seq;
-import florifulgurator.logsocket.YSeq.Seq.SeqStopException;
+import florifulgurator.logsocket.yseq.Seq;
+import florifulgurator.logsocket.yseq.Seq.SeqStopException;
 
 import java.util.ArrayList;
 import java.util.Comparator;
