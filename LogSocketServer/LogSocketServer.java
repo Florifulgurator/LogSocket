@@ -63,7 +63,7 @@ public class LogSocketServer implements ServletContextListener  {
 
 public static ExecutorService              exctrService = Executors.newFixedThreadPool(10);
 
-public static record LggrRcrd(String longId, String comment, boolean stopped, long T) {} //Records are immutable data classes
+public static record LggrRcrd(String longId, String comment, boolean on, boolean ignored, long T) {} //Records are immutable data classes
 public static Map<String,LggrRcrd>        lggrMap = new ConcurrentHashMap<>(100); // lggr.shortId |=> LggrRcrd
 public static Comparator<String>          shortIdComprtr = (l1, l2) -> (int)Math.signum(lggrMap.get(l1).T - lggrMap.get(l2).T);
 
@@ -99,8 +99,6 @@ private static long                       firstLgScktT = 0;
 private static boolean                    firstLgScktTisNew = true;
 
 private static final Pattern              blankPttrn = Pattern.compile("\\s+");
-
-private static String lambdStrVar = ""; // Used in lambda expression. "Local variable xyz defined in an enclosing scope must be final or effectively final"
 
 private static String                     rootPath = null;
 private static Properties                 props = new Properties();
@@ -240,17 +238,16 @@ srvrCommands.put("!HELLO", new SrvrCmd() { synchronized public void exec(Session
 	sendText(sess, "%FIRST_T "+firstLgScktT);
 	sendText(sess, "%TIMERS "+timersToString()); // TODO #1538e9e5 Let server send only new timer results, append named list in client.
 	sendText(sess, "%CLOCK "+Clock.nanoUnit +" "+Clock.T_ms());
-
-	lambdStrVar = "";
-	// TODO #495e57b8 get loggers (incl. numMsgs) from LogSockets /PING, check with lggrMap
+	
 	synchronized(lggrMap) {
+		// TODO #495e57b8 get loggers (incl. numMsgs) from LogSockets /PING, check with lggrMap
 		lggrMap.keySet().stream().sorted(shortIdComprtr).forEach( shortId -> {
 			LggrRcrd rcrd = lggrMap.get(shortId);
-			sendText(sess, "%NEW_LGGR " + rcrd.T + " " + shortId + " " + rcrd.longId + " " + rcrd.comment ); // TODO #495e57b8 numMsgs
-			if (rcrd.stopped) lambdStrVar += " "+shortId;
+			if (!rcrd.ignored) {
+				sendText(sess, "%NEW_LGGR " + rcrd.T + " "+(rcrd.on?"1 ":"0 ") + shortId + " " + rcrd.longId + " " + rcrd.comment ); // TODO #495e57b8 numMsgs
+			} // else *E*xistence ignored
 		});
 	}	
-	if (!lambdStrVar.isEmpty()) sendText(sess, "%STOPPED"+lambdStrVar );
 	if (!filter1.isEmpty()) sendText(sess, "%FILTER1_ADD "+filter1.stream().collect(Collectors.joining(" ")));
 	
 	// Wait until listener has digested and replies with "!READY":
@@ -310,17 +307,17 @@ srvrCommands.put("!GC_LGGR", new SrvrCmd() { public void exec(Session sess, Stri
 } );
 // ---
 srvrCommands.put("!NEW_LGGR", new SrvrCmd() { public void exec(Session sess, String argStr)
-{
+{////DEV #23e526a3 Lggr.on
 	if(firstLgScktTisNew) {
 		sendMsgToAllListeners("%FIRST_T "+firstLgScktT, true);
 		firstLgScktTisNew = false;
 	}
 	long T = Clock.T();
 	sendMsgToAllListeners("%NEW_LGGR " +T+ " " + argStr, true); // true = not into srvrBuffer. Kept extra (%NEW_LGGR) or gets lost when nobody is listening
-	String[] args = blankPttrn.split(argStr, 3);
+	String[] args = blankPttrn.split(argStr, 4);
 	boolean existed;
 	synchronized(lggrMap) {
-		existed = lggrMap.put( args[0], new LggrRcrd( args[1], args[2], false, T ) ) != null;
+		existed = lggrMap.put( args[1], new LggrRcrd( args[2], args[3], "1".equals(args[0])?true:false, false, T ) ) != null;
 	}
 	
 	if( existed ) {
@@ -435,15 +432,15 @@ srvrCommands.put("!FILTER1_REMOVE", new SrvrCmd() { public void exec(Session ses
 }
 } );
 // ---
-srvrCommands.put("!STOPPED", new SrvrCmd() { public void exec(Session sess, String arg)
+srvrCommands.put("!SILENCED", new SrvrCmd() { public void exec(Session sess, String arg)
 {
 	synchronized(lggrMap) {
 		for (String shortId : blankPttrn.split(arg) ) {
 			LggrRcrd rcrd = lggrMap.get(shortId);
-			lggrMap.put(shortId, new LggrRcrd(rcrd.longId, rcrd.comment, true, rcrd.T));
+			lggrMap.put(shortId, new LggrRcrd(rcrd.longId, rcrd.comment, false, true, rcrd.T));
 		}
 	}
-	sendMsgToAllListeners("%STOPPED "+arg, false);
+	sendMsgToAllListeners("%SILENCED "+arg, false);
 	//TODO #7594d994 client consistency test
 }
 } );
@@ -787,11 +784,6 @@ public static class TEST {
 }//END class TEST
 
 
-// As of release 1.5, there is a third approach to implementing singletons. Simply make an enum type with one element:
-// [...]
-// This approach is functionally equivalent to the public field approach, except that it is more concise, provides the serialization machinery for free ,
-// and provides an ironclad guarantee against multiple instantiation, even in the face of sophisticated serialization or reflection attacks.
-// While this approach has yet to be widely adopted, a single-element enum type is the best way to implement a singleton.
 
 
 

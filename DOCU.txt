@@ -1,0 +1,73 @@
+*****************************************************************
+* Instead of serious systematic docu, snippets from source code *
+* Documentary comments should have a DOCU tag                   *
+*****************************************************************
+
+
+-------------------------------------------------------------------------------
+
+	// LogSocket system time T comes as integer number of server "clock ticks"
+	// T()/nanoUnit = ms
+	public static final long T() { return Math.round((System.nanoTime()-T0) *milliNanoUnit); }
+
+	public static final long   T0 = System.nanoTime(); // close to max safe integer in JavaScript
+	                                                   // Windows: Last 2 digits of System.nanoTime() either 99 or 00.
+	public static  int         nanoUnit = 100;         // 100: 1Tick == 10μs==1/100ms || 10: 1Tick==1/10ms
+	                                                   // Likely forever hardwired to 100. Dependency: CAVEAT #70249bfa
+	public static  double      milliNanoUnit = nanoUnit/1000000.0;
+
+
+-------------------------------------------------------------------------------
+/* Logger status colors/decoration  //DOCU #2540b06f */
+.lg.gc.stp                 { color: var(--fltrSTPGC); text-decoration: line-through; }
+.lg.stp:not(.gc)           { color: var(--fltrSTP); }
+.lg.gc:not(.stp):not(.sil) { color: var(--fltrGC);  text-decoration: line-through; }
+.lg.sil:not(.gc)           { color: var(--fltrSIL); }
+.lg.gc.sil                 { color: var(--fltrSILGC); text-decoration: line-through; }
+
+--fltrSTP:   rgb(185, 0, 0);     /* Logger stopped: filter "E" */ /* DOCU #2540b06f */
+--fltrSIL:   rgb(0, 0, 185);     /* Logger silenced: filter "M" */
+--fltrGC:    rgb(187, 187, 187); /* Logger garbage collected, no filter */
+--fltrSTPGC: rgb(223, 151, 151); /* Logger garbage collected, filter "E" */
+--fltrSILGC: rgb(151, 151, 223); /* Logger garbage collected, filter "M" */
+-------------------------------------------------------------------------------
+
+Filter rule string syntax:
+
+// realm>#label1#label12&label3=M  // #label1#label12 treated as one label. "M" ignore *M*essages, but track existence and make ID
+//  *>#label1&#label2&label3=E     // 3 labels. "E" ignore *E*xistence. No finalize(), no ID for new loggers
+// rlm>*=M
+
+-------------------------------------------------------------------------------
+
+// DOCU #681a8b4e long integer labelsCode
+// There can be max. 63 sub-labels per LogSocket. Each new sub-label gets assigned a bit.
+// The order of the sub-labels in the labels string assigned to a logger will not be
+// changed, but for filtering the labels string is represented by the bit pattern
+// given by OR-ing the label bits in a long integer.
+// If zero it means "*" in the rule String.
+
+// DOCU #681a8b4e 
+// Duplicates are counted according to the labels string passed upon logger creation.
+// Sub-label ordering is relevant here, but not for filtering:
+// The filter mechanism uses a long integer labelsCode bit map, where sub-label ordering is irrelevant.
+
+
+-------------------------------------------------------------------------------
+Logger Realm & Label syntax:
+
+	illglLblChrsPttrn = Pattern.compile("[^#@A-Za-z0-9_]");
+	illglRlmChrsPttrn = Pattern.compile("\\W");
+
+	String checkedLabel = label;
+	if (label.isEmpty()) {
+		checkedLabel = "#NOLABEL";
+	} else if (label.charAt(0)!='#') {
+		checkedLabel = "#"+label; // else bug!
+	}
+	String checkedRealm = illglRlmChrsPttrn.matcher(realm).replaceAll("");
+	if (checkedRealm.isEmpty()) checkedRealm="Errr";
+	String checkedRealmLabel = checkedRealm + (checkedLabel=illglLblChrsPttrn.matcher(checkedLabel).replaceAll(""));
+-------------------------------------------------------------------------------
+
+

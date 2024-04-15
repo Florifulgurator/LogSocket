@@ -1,5 +1,5 @@
 
-var avgStripeRgbDist_wanted = 16;  //was 24 //#AS set null to get avg of input
+var avgStripeRgbDist_wanted = 24;  //was 16 //#AS set null to get avg of input
 
 
 

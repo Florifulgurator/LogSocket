@@ -123,8 +123,8 @@ public static long registerLabels(Stream<String> labelsStream) {
 
 // Apply rule to existing lggrs
 static void applyRule(Rule rule) { //DEV #23e526a3  //DEV #6cb5e491
-
-	if (rule.realm==null || rule.labels==null || rule.labels.length!=1 ) {//All realms || all labels || more than 1 label
+//DEV
+	if ( true || rule.realm==null || rule.labels==null || rule.labels.length!=1 ) {//All realms || all labels || more than 1 label
 		LogSocket.complain("TODO #6776bf39 filter1 rule="+rule);
 		LogSocket.sendMsg("/ALERT_R TODO #6776bf39 Filter:<br/>"+escapeHTML(rule.toString()));
 		return;
@@ -134,12 +134,7 @@ static void applyRule(Rule rule) { //DEV #23e526a3  //DEV #6cb5e491
 	int goneNum=0, fltrdNum=0, alreadyfltrdNum=0;
 	boolean ignore = "E".equals(rule.result);
 	
-	
-	
-	
-	
-	
-
+/*	
 	synchronized(LogSocket.realmLabel2LggrList) {
 		String rlmLbl = rule.realm+rule.labels[0];
 		LogSocket.filteredRealmLabel.put(rlmLbl, rule.result);
@@ -178,6 +173,7 @@ static void applyRule(Rule rule) { //DEV #23e526a3  //DEV #6cb5e491
 			System.err.println("!!!- LogSocket_ERROR_X Filter.applyRule (TODO) "+e.getMessage());
 		}
 	}
+*/
 }
 
 

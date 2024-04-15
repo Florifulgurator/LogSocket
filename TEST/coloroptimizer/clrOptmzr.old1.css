@@ -1,0 +1,119 @@
+
+/* ***************************** */
+/* MODIFIED OUTPUT of clrOptmzr.js:       */
+/* Logger background colors      */
+/* ***************************** */
+/* #3myx */
+/* Sat Feb 24 2024 23:42:29 GMT+0100 (Central European Standard Time) */
+/*  */
+/* bgX2: Source of bgX0 and bgX1: */
+.bgC2 { background-color: rgb(214, 240, 198, 0.879);}
+.bgA2 { background-color: rgb(210, 224, 218, 0.863);}
+.bgM2 { background-color: rgb(182, 237, 226, 0.875);}
+.bgR2 { background-color: rgb(187, 222, 245, 0.874);}
+.bgJ2 { background-color: rgb(208, 207, 252, 0.874);}
+.bgN2 { background-color: rgb(223, 205, 230, 0.87);}
+.bgQ2 { background-color: rgb(237, 223, 202, 0.872);}
+.bgO2 { background-color: rgb(249, 206, 244, 0.8);}
+/* bgX0 == bgX2 without transparency: */
+.bgC0 { background-color: rgb(213, 239, 198);}
+.bgA0 { background-color: rgb(210, 224, 218);}
+.bgM0 { background-color: rgb(182, 237, 226);}
+.bgR0 { background-color: rgb(187, 222, 245);}
+.bgJ0 { background-color: rgb(208, 206, 251);}
+.bgN0 { background-color: rgb(222, 205, 230);}
+.bgQ0 { background-color: rgb(236, 222, 202);}
+.bgO0 { background-color: rgb(247, 205, 216);}
+/* bgX1 == no-transparency RGB from bgX2 being transparent on white: */
+.bgC1 { background-color: rgb(219, 242, 205);}
+.bgA1 { background-color: rgb(216, 229, 223);}
+.bgM1 { background-color: rgb(191, 240, 230);}
+.bgR1 { background-color: rgb(196, 226, 247);}
+.bgJ1 { background-color: rgb(214, 213, 252);}
+.bgN1 { background-color: rgb(227, 212, 233);}
+.bgQ1 { background-color: rgb(239, 227, 209);}
+.bgO1 { background-color: rgb(249, 212, 221);}
+/* END OUTPUT of clrOptmzr.js <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< */
+
+
+/***********************************************************************************/
+
+/* ***************************** */
+/* OUTPUT of clrOptmzr.js:       */
+/* Logger background colors      */
+/* ***************************** */
+/* #xhfb */
+/* Sat Feb 24 2024 23:37:34 GMT+0100 (Central European Standard Time) */
+/*  */
+/* bgX2: Source of bgX0 and bgX1: */
+.bgC2 { background-color: rgb(209, 242, 210, 0.858);}
+.bgA2 { background-color: rgb(212, 219, 228, 0.855);}
+.bgM2 { background-color: rgb(191, 238, 232, 0.86);}
+.bgR2 { background-color: rgb(196, 222, 253, 0.86);}
+.bgJ2 { background-color: rgb(223, 208, 250, 0.862);}
+.bgN2 { background-color: rgb(231, 219, 232, 0.77);}
+.bgQ2 { background-color: rgb(239, 228, 205, 0.854);}
+.bgO2 { background-color: rgb(246, 211, 224, 0.853);}
+/* bgX0 == bgX2 without transparency: */
+.bgC0 { background-color: rgb(209, 242, 210);}
+.bgA0 { background-color: rgb(212, 219, 228);}
+.bgM0 { background-color: rgb(190, 238, 232);}
+.bgR0 { background-color: rgb(195, 222, 252);}
+.bgJ0 { background-color: rgb(223, 207, 250);}
+.bgN0 { background-color: rgb(181, 172, 253);}
+.bgQ0 { background-color: rgb(239, 227, 205);}
+.bgO0 { background-color: rgb(245, 211, 224);}
+/* bgX1 == no-transparency RGB from bgX2 being transparent on white: */
+.bgC1 { background-color: rgb(216, 244, 217);}
+.bgA1 { background-color: rgb(218, 225, 232);}
+.bgM1 { background-color: rgb(200, 241, 236);}
+.bgR1 { background-color: rgb(204, 227, 253);}
+.bgJ1 { background-color: rgb(228, 214, 251);}
+.bgN1 { background-color: rgb(175, 166, 253);}
+.bgQ1 { background-color: rgb(242, 232, 212);}
+.bgO1 { background-color: rgb(247, 218, 229);}
+/* END OUTPUT of clrOptmzr.js <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< */
+
+
+/***********************************************************************************/
+
+/* ***************************** */
+/* INPUT for coloroptimizer.js:  */
+/* Logger background colors      */
+/* ***************************** */
+
+
+.bgC0 { background-color: rgb(218, 240, 217);}
+.bgC2 { background-color: rgb(218, 240, 217, 0.69);}
+/*.bgA0 { background-color: rgb(230, 231, 242);} */
+.bgA0 { background-color: rgb(221, 222, 233);} 
+.bgA2 { background-color: rgb(221, 222, 233, 0.70);}
+.bgM0 { background-color: rgb(207, 225, 243);}
+.bgM2 { background-color: rgb(207, 225, 243, 0.78);}
+.bgR0 { background-color: rgb(193, 210, 255);} 
+.bgR2 { background-color: rgb(193, 210, 255, 0.83);}
+.bgJ0 { background-color: rgb(230, 201, 245);} 
+.bgJ2 { background-color: rgb(230, 201, 245, 0.80);}
+.bgN0 { background-color: rgb(231, 219, 232);} 
+.bgN2 { background-color: rgb(231, 219, 232, 0.77);}
+.bgQ0 { background-color: rgb(242, 234, 183);} 
+/*.bgQ2 { background-color: rgb(242, 234, 183, 0.75);}*/
+.bgQ2 { background-color: rgb(238, 237, 193, 0.761);}
+.bgO0 { background-color: rgb(247, 226, 210);} 
+.bgO2 { background-color: rgb(247, 226, 210, 0.75);}
+/* Blank in ", " used by JavaScript! */
+
+/* Computed by script #655e8593 from comments above: */
+/* function trOnWhite2noTrColor(c) {  // #655e8593   */
+
+.bgC1 { background-color: rgb(229, 245, 229);}
+.bgA1 { background-color: rgb(231, 232, 240);}
+.bgM1 { background-color: rgb(218, 232, 246);}
+.bgR1 { background-color: rgb(204, 218, 255);}
+.bgJ1 { background-color: rgb(235, 212, 247);}
+.bgN1 { background-color: rgb(237, 227, 237);}
+.bgQ1 { background-color: rgb(245, 239, 201);}
+.bgO1 { background-color: rgb(249, 233, 221);}
+
+
+
