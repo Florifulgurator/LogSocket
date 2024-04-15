@@ -1,231 +1,355 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html>
 
 <head>
-	<meta charset="UTF-8">
+	<meta http-equiv='Content-Type' content='text/html; charset=UTF-8' />
 	<title>LogSocket Client</title>
 
-	<!-- link href="./favicon.ico" rel="icon" type="image/x-icon" -->
-	<link rel="stylesheet" href="./client.css" type="text/css"><!-- Javascript assumes exactly one CSS file loaded -->
+	<link href="./favicon.ico" rel="icon" type="image/x-icon"/>
+	<link rel="stylesheet" href="./client.css" type="text/css"/><!-- JS assumes exactly one CSS file loaded -->
 
-	<script language="javascript" type="text/javascript">
+	<script type="text/javascript">
 		//Parameters for client_XXX.js
-		const wsUri = "ws://localhost:8080/logsocket/ws";
-		const TESTcommands = ["/PING", "!THROW", "!CLOSE", "HURZ"]; // ["!THROW", "!TEST_SRVR", "!END"];
-		const TESTurls = ["./TEST.jsp", "./TEST.jsp?n=3"]
+		const wsUri = "ws://localhost:8080/logsocket/ws"; // LogSocketServer URI HARDWIRED #57977fd8
+		const TESTsrvrCmds = ["!THROW", "!CLOSE", "!HURZ", "UNKNOWN"];
+		const TESTurls = ["http://localhost:8081/logsocketTEST/TEST.jsp", "./index.jsp"];
 	</script>
+	
+	<script defer type="text/javascript" src="client_lib.js"></script>
+	<script defer type="text/javascript" src="client_clock.js"></script>
+	<script defer type="text/javascript" src="client_TEST.js"></script>
+	<script defer type="text/javascript" src="client_init.js"></script><!-- Some DOCU/remarks in client_init.js -->
+	<script defer type="text/javascript" src="client_gui_lib.js"></script>
+	<script defer type="text/javascript" src="client_gui.js"></script>
+	<script defer type="text/javascript" src="client_view.js"></script>
+	<script defer type="text/javascript" src="client_selection.js"></script>	
+	<script defer type="text/javascript" src="client_cmds.js"></script>
+	<!-- For performance and the KISS principle, we don't even use jQuery... -->
 </head>
 
 <body>
 
-<!-- Fixed-position div in upper right corner, containing buttons and popup dialogs -->
-<div id="upprRghtCrnrID" style="pointer-events:none; position:fixed; right:8px; text-align:right;">
-	<!-- 8px = default margin of body element. -->
-	
-	<div style="padding-bottom:0.3em;">
-		<!-- padding-bottom at the spans messes up -->
-		<span class="drpdwnbtn" id="clrsDrpdwnID" onclick="_clrsDrpdwnClick()">&nbsp;Colors&nbsp;<span class="sym">&#9746;</span></span>&nbsp;
-		<span class="drpdwnbtn" id="actnsDrpdwnID" onclick="_actnsDrpdwnClick()">&nbsp;Menu&nbsp;<span class="sym">&#9746;</span></span> 
+
+<!-- Header/Config/Info >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> -->
+<div  class="smallr">
+	<table style="border-spacing:0px;"><tr>
+		<td rowspan="3" style="vertical-align:top;">
+			<div id="titleID"
+title="TODO #3c7fc2f Help menu
+* Tested only for Chrome browser *
+
+- Close dropdown/menu by right-click
+- Search only works on log messages
+- Log: Timing number without a unit denotes server clock ticks
+- Logger list: Timing number without a unit denotes milliseconds.
+
+GUI design:
+Top left button(s): Info dropdown window(s).
+Top middle: GUI messages/alerts.
+Top right buttons: Stackable dropdown menus.
+">&nbsp;LogSocket&nbsp;<br/>&Tilde;&nbsp;Client&nbsp;&Tilde;</div><!-- &Tilde; != &tilde; -->
+		</td>
+		<td>&nbsp;&nbsp;</td>
+		<td>
+			<span class="fgDisco">session ID = </span><span id="sessID" class="mnspcd"><!-- [JS] --></span>
+	<br/>
+			<span class="fgDisco">Config: </span>
+			<label>Clock tick
+				<select id="clockTickID" class="mnspcd" title="TODO ...">
+					<option selected>10&mu;s</option>
+					<option disabled>&#8530;ms</option>
+				</select>
+			</label>
+			<label id="colorByID">Color by
+				<select class="mnspcd" title="TODO ...">
+					<option selected>Realm/LogsocketNr</option>
+					<option disabled>Logger ID</option>
+				</select>
+			</label>
+	<br/>
+			<span class="fgDisco">Last clock correction: </span><span id="T0corrID" class="mnspcd">Not yet<!-- [JS] --></span>
+			<span class="fgDisco hidden" id="T0corrCID">by client</span><span class="fgDisco hidden" id="T0corrSID">by server</span>
+	<br/>
+			<span class="fgDisco">Avg. message roundtrip time: Client:&nbsp;</span><span id="amrtCID" class="mnspcd">?<!-- [JS] --></span>,
+			<span class="fgDisco">server:&nbsp;</span><span id="amrtSID" class="mnspcd">?<!-- [JS] --></span>
+	<br/>
+			<span class="fgDisco">System message colors:</span><!-- #7e821f32 -->
+			<span class="bgD0 smallr"><nobr>&nbsp;<span class="mnspcd">%</span>Client</nobr>&nbsp;</span>
+			<span class="bgS0 smallr"><nobr>&nbsp;<span class="mnspcd">!</span>Server</nobr>&nbsp;</span>
+			<span class="bgL0 smallr"><nobr>&nbsp;<span class="mnspcd">/</span>LogSocket</nobr>&nbsp;</span>
+			<span class="bgB0 smallr"><nobr>&nbsp;<span class="mnspcd">/</span>Buffers</nobr>&nbsp;</span>
+			<span class="bgE0 smallr"><nobr>&nbsp;Eval,</nobr> <nobr>Error,</nobr> <nobr>Warn</nobr>&nbsp;</span>
+			<span class="bgF0 smallr"><nobr>&nbsp;Fail</nobr>&nbsp;</span>
+		</td>
+	</tr></table>
+</div>
+<!-- <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Header/Config/Info -->
+
+<!-- --Line Spacer-- --><div id="wdthTst" class="lineSpacer"></div>
+
+
+<!-- Logger Info Window >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> -->
+<div id="loggersID" class="frame1"><!-- dynamic placement -->
+
+	<div class="lggrWinSection" id="bgClrsID">
+		<span class="fgDisco bold">Logger colors:</span><!-- [JS] -->
+	</div> 
+
+	<div class="lggrWinSection">
+		<span class="fgDisco nobr"><span class="bold">Loggers:</span> Message count | Logger ID | Timing (ms) | Creation comment</span>
+		<br/>
+		<table id="lggrTblTblID">
+ 			<tbody id="lggrTblBdID"><!-- Chrome would insert <tbody> automatically -->
+				<!-- [JS] -->
+			</tbody>
+		</table>
+		<input type="button" class="smallbtn" id="cleanLggrListBtn" onclick="_cleanupDltdLggrs()" value="Cleanup all"/>
+<!-- 	DEV			<span class="smallbtn" id="cleanLggrListBtn" onclick="_cleanupDltdLggrs()">Cleanup all</span> -->
+		
+<!-- 		<span class="fgDisco">All messages count:</span> <span id="logMsgNumID" class="mnspcd">[JS] TODO</span> -->
 	</div>
 
-	<!-- Colors >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> -->
-	<div id="clrsDivID" class="dialogWrppr">
-		<table class="dialog">
+	
+	<div class="lggrWinSection" id="fltrSctnDIV">
+ 		<span class="fgDisco nobr"><span class="bold">Global logger filter:</span> Realm | Label(s) </span><!-- //DEV #6cb5e491 -->
+<!-- 		<table class="lggrTbl">
+			<tbody id="filter1LstID">
+				[JS]
+			</tbody>
+		</table>
+ -->
+ 		<div id="filter1LstID"><!-- [JS] --></div>	
+ 	</div> 
+
+	
+	<div class="lggrWinSection">
+		<span class="fgDisco bold">Global system timers:</span> <span id="timrsID" class="mnspcd"><!-- [JS] --></span>
+		<input type="button" class="smallbtn" id="cleanSysTimrsBtn" style="display:none" onclick="_cleanupTimers()" value="Cleanup"/>
+		<br/>
+		<span class="fgDisco bold">Local microtimers:</span> <span id="micrTimrsID" class="mnspcd"><!-- [JS] --></span>
+	</div>
+
+</div>
+<!-- <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Logger Info -->
+
+<!-- --Line Spacer-- --><div class="lineSpacer"></div>
+
+
+<!-- Log ouput ******************************************** -->
+<div id="outputID"><!-- [JS] --></div>
+<!-- ****************************************************** -->
+
+
+
+<!-- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> -->
+<!-- Fixed top: Dropdown win buttons, msg win >>>>>>>>>>>>> -->
+
+	<span class="drpdwnWinBttnWhite" id="lggrsButtonID" onclick="_lggrsButtonClick()">&nbsp;Loggers&nbsp;<span class="sym">&#9776;</span></span>
+	<!-- Button appears when <div id="loggersID"> scrolled out of viewport.
+	     When scrolling back up, before button collides with <div id="titleID">, button disappears and <div id="loggersID"> put at original place. -->
+
+<!-- Top center fixed position -->
+<div id="clientMsgsID" class="clientMsgs clntMsgRed"><!-- #2a77d95a -->
+	<div>&nbsp;<span id="clientMsgTxtID">Loading...</span>&nbsp;<!-- [JS] --></div>
+	<div id="TESTwin1ID"><!-- [JS] --></div>
+</div>
+
+<!-- Upper right screen corner >>>>>>>>>>>>>>>>>>>>>>>>>>>> -->
+<div id="drpdwnWinBttnsID">
+		<span class="drpdwnWinBttn" id="clrsButtonID" onclick="_clrsButtonClick()">&nbsp;Colors&nbsp;<span class="sym">&#9776;</span></span>&nbsp;
+		<span class="drpdwnWinBttn" id="menuButtonID" onclick="_menuButtonClick()">&nbsp;Menu&nbsp;<span class="sym">&#9776;</span></span> 
+</div>
+<!-- <<<<<<<<<<<<<<<<<<<<<<<<<<<< Upper right screen corner -->
+
+
+<!-- >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> -->
+<!-- Dropdown window stack >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> -->
+<div id="drpdwnStckID" class="posRT">
+
+	<!-- Colors >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> -->
+	<div id="clrsDivID" class="dropdownR">
+		<table>
 			<tr>
 				<td>Next selection color:&nbsp;</td>
-				<td style="text-align:left"><span id="hlColrsID" class="hoverbox"><!-- Javascript --></span></td>
+				<td style="text-align:left"><span id="hlColrsID" class="hoverbox"><!-- [JS] --></span></td>
 			</tr>
 			<tr>
 				<td>User choice only:&nbsp;</td>
-				<td style="text-align:left"><span id="hlxColrsID" class="hoverbox"><!-- Javascript --></span></td>
+				<td style="text-align:left"><span id="hlxColrsID" class="hoverbox"><!-- [JS] --></span></td>
 			</tr>
 		</table>
 	</div>
-	
-	<br id="hurzID">
-	
-	<!-- Menu >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> -->
-	<div id="actnsDivID" class="dialogWrppr">
-	<div class="dialog">
+	<!-- <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Colors -->
+		
+	<!-- Menu >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> -->
+	<div id="menuDivID" class="dropdownR">
 		<nobr>
-			<input onclick="_search()" value="Search:" type="button" title="Search this log.">
-			<input id="searchID" value="" type="text" title="Type and click [Search] or just paste stuff here.">
-			<!-- paste event added by Javascript -->
+			<input onclick="_search()" value="Search:" type="button" 
+title="Search log messages.
+Also by double clicking or selecting
+in log or in logger comments."/>
+			<input id="searchID" value="" type="text" 
+title="Type and click [Search] or just paste stuff here."/><!-- paste event added by [JS] -->
 		</nobr>
-		<br>
+		<br/>
 			<label><input type="checkbox" id="caseID" onclick="_caseSensi()"/>Case sensitive</label>
-		<hr>
-		<nobr>
-			<input onclick="_comment()" value="Comment:" type="button" title="Add comment to all open logs.">
-			<input id="textID" value="Comment------" type="text">
-		</nobr>
-		<br>
-			<input onclick="_garbageColl()" value="Call Garbage Collection" type="button" title="Delete unreferenced loggers.">
-		<br>
-			<input onclick="_pingLogSockets()" value="Ping Logsockets" type="button" title="Get state of logsockets.">
-		<hr><!-- NOTE Not checked. Cf. css, js -->
-			<label id="showCmdsID"><input type="checkbox" onclick="_showCmds()"/>Show internal messages <span></span></label>
-		<br>
-			<label><input type="checkbox" id="showGCID" onclick="_showGC()"/>Show garbage collection</label>
-		<br>
-			<label id="wordwrapID"><input type="checkbox" onclick="_wordwrap()"/>Line wrap</label>
-		<br><!-- NOTE Not checked. Cf. css, js -->
-			<label id="millisID"><input type="checkbox" onclick="_millis()"/>Show timing</label>
-		<br>
-		<nobr>
-			Bracket bursts &lt; <input type="text" id="burstGrpThrID" size="3" maxlength="3" value="999"/> clock ticks (CT)
-			<!-- TODO reflect JS var burstGrpThr -->
-		</nobr>
 
-		<form id="TODO3" class="fgDisco">
+		<hr class="collpsd"/><!-- ---------------------------- -->
+
+		<nobr>
+			<input onclick="_comment()" value="Comment:" type="button" 
+title="Add comment to log in all open clients."/>
+			<input id="textID" value="Comment------" type="text"/>
+		</nobr>
+		<br/>
+			<input onclick="_garbageColl()" value="Call Garbage Collection" type="button" 
+title="Request deletion of unreferenced loggers.
+(Counter to common advice it almost always works promptly.)"/>
+		<br/>
+			<input onclick="_pingLogSockets()" value="Ping Logsockets" type="button" 
+title="Get state of logsockets."/>
+
+		<hr class="collpsd"/><!-- ---------------------------- -->
+		
+			<label id="showCmdsID"><input type="checkbox" onclick="_showCmds()"/>Show internal messages <span></span></label><!-- #65f24547 Not checked. Cf. css, js -->
+		<br/>
+			<label
+title="Log calls of logger finalization method.
+Switched on hardwired. TODO #43d4d9ad">
+			<input type="checkbox" id="logGCID" onclick="_logGC()" disabled/>Log garbage collection</label>
+		<br/>
+			<label id="linewrapID"><input type="checkbox" onclick="_linewrap()"/>Line wrap</label><!-- #4ca41226 Necessarily (WHY?) not checked. Cf. css, js -->
+
+		<hr class="collpsd"/><!-- ---------------------------- -->
+		
+			<label id="millisID"><input type="checkbox" onclick="_millis()"/>Show timing</label><!-- #4ca41226 Not checked. Cf. css, js -->
+		<br/>
+		<nobr>
+			Bracket bursts &lt; <input type="text" id="burstGrpThrID" size="3" maxlength="3" value="999" disabled
+title="Still hardwired. TODO #7d3b1629"/><!-- FIXME #69c6a3f0 stupid box size -->
+			clock ticks	(<span id="CTtxtID">???</span>)
+		</nobr>
+		<br/>
+
+		<nobr>
+			Check clocks:
+			<input onclick="_synchClocks()" value="by client" type="button" id="syClClBtn"
+title="Set client clock to server clock start time.
+Requires some network timing statistics.
+Precision <10&mu;s
+TODO #66eb4a7b Quartz drift, Daemon."/>
+			<input onclick="_synchClocksS()" value="by server" type="button" id="syClSvBtn"
+title="Set client clock to server clock start time.
+Requires some network timing statistics.
+Precision <10&mu;s
+TODO #66eb4a7b Quartz drift, Daemon."/>
+<!-- 			<label id="synchDmnID"><input type="checkbox" onclick="" disabled/>Daemon</label> -->
+		</nobr>
+		
+		<hr class="collpsd"/><!-- ---------------------------- -->
+			Global logger filter:<br/>
+			<input onclick="" value="Clear" type="button" disabled
+title="...but keep last saved filter
+in file LogSocketServer.properties.
+//TODO #7f344280"/>
+			<input onclick="" value="Load saved" type="button" disabled/>
+			<input onclick="" value="Save now" type="button" disabled
+title="...even if empty.
+//TODO #7f344280"/>
+		<br/>
+			<label
+title="Else save in LogSocketServer.properties
+when server shuts down
+//TODO #7f344280">
+			<input type="checkbox" onclick=""/>Dont't save</label>
+		
+		
+		<form id="TESTcmdsID" class="fgDisco smallr">
 			<fieldset id="TESTfrm">
 				<legend><small>TESTs</small></legend>
-				<!-- Filled by Javascript from const TESTcommands -->
+				<!-- Filled by JS from TESTsrvrCmds and TESTurls (in head) and hardwired JS in client_TEST.js -->
 			</fieldset>
 		</form>
 	</div>
+	<!-- <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Menu -->
+</div>
+<!-- <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Dropdown stack -->
+
+
+
+
+<!-- Context Popup Menus >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> -->
+
+<div class="contextMenu" id="contxtMenu1ID"><!-- TODO rename IDs FIXME click-"active" div not just span -->
+	<div class="active"><span class="active" onclick="_cntxtMn_Copy()">Copy</span></div>
+	<hr/>
+	<div class="active" 
+title="Left click on colored element
+also removes color">
+		<span class="active" onclick="_cntxtMn_RemvClr()">Remove color</span></div>
+	<div><span id="cntxtMnID3"
+title="TODO">Remove color &amp; use as next</span></div>
+	<div><span
+title="TODO">Remove all colors</span></div>
+	<div><span
+title="TODO">Remove auto colors</span></div>
+	<div><span
+title="TODO">Remove user colors</span></div>
+</div>
+
+
+<div class="contextMenu" id="contxtMenu3ID">
+	<div class="active" onclick="_stopLggr()">
+		Apply filter:<br/>
+		&nbsp;&nbsp;<span class="mnspcd fgBlack" id="ctxMnLggrFltrID"><!-- [JS] --></span>
 	</div>
-	<!-- Menu <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< -->
-	
-</div><!-- Fixed position in upper right corner -->
-
-
-<!-- Title/Info >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> -->
-<div id="tttttID">
-	<big class="Disco headr" title="Click for help (TODO)">~&nbsp;LogSocket Client&nbsp;~</big>
-	&nbsp;
-	<small>
-		<span class="fgDisco">session ID = </span><span id="sessID" class="mnspcd"><!-- Javascript --></span>
-		&nbsp;
-		<span class="fgDisco">Config: </span>
-		<label id="clockTickID">Clock tick
-			<select class="mnspcd" title="TODO ...">
-				<option id="" selected>10&mu;s</option>
-				<option>&#8530;ms</option>
-			</select>
-		</label>
-
-		<label id="colorByID">Color by
-			<select class="mnspcd" title="TODO ...">
-				<option id="" selected>Realm/Logsocket</option>
-				<option>Logger ID</option>
-			</select>
-		</label>
-	</small>
-
-	<!-- Line Spacer  --><div style="height:0.5em"></div>
-	<small>
-		<span class="fgDisco">Message colors:</span>
-		<span class="bgDisco0"><span class="mnspcd">%</span>Client</span>
-		<span class="bgServer0"><span class="mnspcd">!</span>Server</span>
-		<span class="bgLgSckt0"><span class="mnspcd">/</span>LogSocket</span>
-		<span class="bgBuffer0"><span class="mnspcd">/</span>Buffer</span>
-		<span class="bgError0">Error, Warn</span>
-	</small>
+	<div><input type="radio" name="fltrStrength" id="cmslFsM"/><label for="cmslFsM"><span class="mnspcd fgBlack bold">M</span>essages</label>
+	     <input type="radio" name="fltrStrength" id="cmslFsC"/><label for="cmslFsC"><span class="mnspcd fgBlack bold">C</span>reation</label></div>
+	<div class="lineSpacer smallr"></div>     
+	<div class="hint">All LogSockets, all duplicates.<br/>Edit in "Global logger filter" list. </div>
 </div>
 
-<hr class="dshdLn">		
-<!-- Pull-down Header >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> -->
-<!-- (Still static, pull-down TODO) -->
-<div id="headerID"> 
-	<small>
-		<div id="bgClrsID">
-			<span class="fgDisco">Logger colors:</span><!-- Javascript -->
-		</div> 
 
-		<!-- Line Spacer --><div style="height:0.5em"></div>
-		<div style="border-bottom: solid 1px; border-top: solid 1px; padding-bottom: 0.5em; border-color: rgb(0, 128, 127);">
-			<span class="fgDisco">Message count / logger ID / creation comment: </span>
-			<br>
-			<div style="line-height: 0.9">
-				<table class="lggrTbl">
-					<tbody id="lggrTblID">
-						<!-- Javascript -->
-					</tbody id="lggrTblID">
-				</table>
-			</div>
-			<input type="button" class="smallbtn" id="clDlLgrsID" onclick="cleanupDltdLggrs()" value="Cleanup">
-		</div>
-		
-		<!-- Line Spacer --><div style="height:0.5em"></div>
-		<span class="fgDisco">Global system timers:</span> <span id="timrsID" class="mnspcd"> <!-- Javascript --></span>
-		<br>
-		<span class="fgDisco">Local microtimers:</span> <span id="micrTimrsID" class="mnspcd"> <!-- Javascript --></span>
-		
-	</small>
-</div>
-<!-- <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< -->
-<hr id="dshdLnID" class="dshdLn">
-
-<!-- Log ouput>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> -->
-<div id="outputID" class="output"><!-- Javascript --></div><!-- style="overflow-y: auto; overflow-x: hidden;" -->
-<!-- <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< -->
+<!-- <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< GUI elements -->
+<!-- <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< -->
 
 
 
-<!-- Popup menus >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> -->
-<div class="popup" id="popupID"><!-- TODO rename IDs FIXME click-"active" div not just span -->
-	<div class="active"><span id="popupID1" class="active" onclick="_ctxtMenuCopy()">Copy</span></div>
-	<hr>
-	<div class="active"><span id="popupID2" class="active" onclick="_ctxtMenuRemvClr()">Remove color</span></div>
-	<div class="active"><span id="popupID3">Remove color &amp; use as next</span></div>
-	<div><span>Remove all colors</span></div>
-	<div><span>Remove auto colors</span></div>
-	<div><span>Remove user colors</span></div>
-	<hr>
-	<div><span>Filter text</span></div>
-	<div><span>Filter loggers with text</span></div>
-</div>
+<!-- Prototype elements to be cloned and removed >>>>>>>>>> -->
 
-<div class="popup" id="popup2ID">
+<div id="infoLinePRTTP" class="hidden"><!-- Wrapper DIV. JS function getPrototypeEl(id) removes wrapper from document, and element id -->
+	<div class="infoLine"><span class="iLSym" onclick="console.log('TODO #6ad6a4be #6b2b50f8 ')"
+title="Results of log search from here to top.
+Not counting previous search results. UNFINISHED #6ad6a4be 
+TODO #6b2b50f8 Navigate to next infoLine: right-click (down) left-click (up).">&#x1f441;&uarr;</span><!-- [JS] --></div>
+</div><!-- #jsputf "👁↑" not working when including file in index.jsp -->
+
+<div id="fltrListLinePRTTP" class="hidden">
 	<div>
-		<input onclick="" value="Stop" type="button" title=""> / 
-		<input onclick="" value="Hide" type="button" title=""> Logger(s)
-	</div>
-	<!-- 1) break ID convention for easier coding 
-	     2) no grandchild elements here!  -->
-	<div class="active" id="IDpp2L"><span class="test2">L</span>
-		<input type="checkbox" id="pp2L" value="L"/>
-		Logger <span class="mnspcd" id="pp2jL"><!-- Javascript --></span>
-	</div>
-	<div class="active" id="IDpp2D"><span class="test2">D</span>
-		<input type="checkbox" id="pp2D" value="D"/>
-		Duplicates from <span class="mnspcd" id="pp2jD"><!-- Javascript --></span> on
-	</div>
-	<div class="active" id="IDpp2E"><span class="test2">E</span>
-		<input type="checkbox" id="pp2E" value="E"/>
-		Duplicates <i>except</i> <span class="mnspcd" id="pp2jE"><!-- Javascript --></span>
-	</div>
-	<div class="active" id="IDpp2W"><span class="test2">W</span>
-		<input type="checkbox" id="pp2W" value="W"/>
-		All of realm <span class="mnspcd" id="pp2jW"><!-- Javascript --></span>
-	</div>
-	<div class="active" id="IDpp2P"><span class="test2">P</span>
-		<input type="checkbox" id="pp2P" value="P"/>
-		Parallel Realm <span class="mnspcd" id="pp2jP"><!-- Javascript --></span> only
-	</div>
-	<div class="active" id="IDpp2Q"><span class="test2">Q</span>
-		<input type="checkbox" id="pp2Q" value="Q"/>
-		<i>Except</i> <span class="mnspcd" id="pp2jQ"><!-- Javascript --></span>
-	</div>
-	<div class="ppHint" id="pop2HintID">
-		Right click to toggle <i>except</i> label.
+		<span class='s'>
+	 		<select class='smallslct r'><option selected orig></option><option> *</option></select>
+	  		<span class='smallr'>&wedge;</span>
+			<select class='smallslct l'><option selected orig></option><option> *</option><option disabled>TODO #c0a0b23</option></select>
+		</span>
+  		<span class='b'>
+			<input type='button' class='smallbtn appl' onclick='' value='Apply'/>
+			<input type='button' class='smallbtn rst'  onclick='' value='Reset'/>
+  		</span>
 	</div>
 </div>
-<!-- <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< -->
 
 
-<!-- class="poppWin" hardwired in JavaScript #7adf0380 >>>>>>>>>>>> -->
-<div class="poppWin" id="poppWinID"><span class="x">☒</span><div class="poppWinTxt">
-testtext
-</div></div>
-<!-- <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< -->
+<!-- More in JS -->
+<!-- <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< -->
 
 
-<span class="mnspcd" style="padding: 0px;" id="fontTestID">012345678901234567890123456789012345678901234567890123456789</span>
 
-<script language="javascript" type="text/javascript" src="client_init.js"></script>
-<script language="javascript" type="text/javascript" src="client_cmds.js"></script>
-<script language="javascript" type="text/javascript" src="client_gui.js"></script>
+<!-- to measure output font width in px -->
+<span class="mnspcd" style="padding: 0px;color:white" id="fontTestID">012345678901234567890123456789012345678901234567890123456789</span>
+<!-- to get 1em in px -->
+<div id="testDivID"  class="mnspcd" style="outline:none;border:none;padding:none;margin:none;box-sizing:content-box;"></div>
 
-</body></html>
+<script>console.log("index.html: Hello World!");</script>
+</body>
+</html>

@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Queue;
@@ -37,13 +38,14 @@ protected static boolean                 shutDown = false;
 private static Integer                   numLggrs = 0;	//Count of created Loggers. Not seriously used.
 
 private static Map<String,Integer>       realmLabel2lastLggrN2 = new ConcurrentHashMap<>();
+// DOCU #681a8b4e 
+// Duplicates are counted according to the labels string passed upon logger creation.
+// Sub-label ordering is relevant here, but not for filtering:
+// The filter mechanism uses a long integer labelsCode bit map, where sub-label ordering is irrelevant.
 
-static Map<String, ArrayList<Tuple<Integer,WeakReference<Lggr>>>> 
-                                         realmLabel2LggrList = new ConcurrentHashMap<>();
-private static Map<String, LinkedHashSet<String>>
-                                         realm2labelList = new ConcurrentHashMap<>();
-private static Map<String, LinkedHashSet<String>>
-                                         label2realmList = new ConcurrentHashMap<>();
+static Map<String, Map<Long, ArrayList<Tuple<String,WeakReference<Lggr>>>>> realm2labelsCode2LggrList = new ConcurrentHashMap<>();
+// Tuple keeps a variant long logger Id (cf. #L), so we know what is gone when WeakRef==null
+
 static Map<String, String>               filteredRealmLabel = new ConcurrentHashMap<>();
                                         
 public static record LggrStringPair(Lggr lgr, String str) {} // Java 14 record instead of class brimborium
@@ -62,13 +64,12 @@ public static ExecutorService            exctrService = Executors.newFixedThread
 //https://www.baeldung.com/java-concurrent-map
 //Hashtable: 1142.45  SynchronizedHashMap: 1273.89  ConcurrentHashMap: 230.2
 
-// Singleton. No constructor necessary. TODO #1528b1ea Singleton as single-element enum
-//
-// As of release 1.5, there is a third approach to implementing singletons. Simply make an enum type with one element:
-// [...]
-// This approach is functionally equivalent to the public field approach, except that it is more concise, provides the serialization machinery for free ,
-// and provides an ironclad guarantee against multiple instantiation, even in the face of sophisticated serialization or reflection attacks.
-// While this approach has yet to be widely adopted, a single-element enum type is the best way to implement a singleton.
+// Singleton. No constructor necessary.
+// TODO #1528b1ea Singleton as single-element enum:
+//   As of release 1.5, there is a third approach to implementing singletons. Simply make an enum type with one element:
+//   [...]
+//   This approach is functionally equivalent to the public field approach, except that it is more concise, provides the serialization machinery for free ,
+//   and provides an ironclad guarantee against multiple instantiation, even in the face of sophisticated serialization or reflection attacks.
 
 private LogSocket() {}
 
@@ -165,7 +166,9 @@ public static Lggr newLggr(String realm, String label) {
 	return newLggr(realm, label, "");
 }
 
-public static Lggr newLggr(String realm, String label, String comment) { // label e.g. #bla1#BLA77, which is two labels that can be filtered separately.
+public static synchronized Lggr newLggr(String realm, String label, String comment) { // label e.g. #bla1#BLA77, which is two labels that can be filtered separately.
+// Synchronized static methods are synchronized on the class object
+
 	if ( websocket==null ) connect();
 
 	//DEV update JS   // DOCU
@@ -175,6 +178,7 @@ public static Lggr newLggr(String realm, String label, String comment) { // labe
 	} else if (label.charAt(0)!='#') {
 		checkedLabel = "#"+label; // else bug!
 	}
+		
 	String checkedRealm = illglRlmChrsPttrn.matcher(realm).replaceAll("");
 	if (checkedRealm.isEmpty()) checkedRealm="Errr";
 	String checkedRealmLabel = checkedRealm + (checkedLabel=illglLblChrsPttrn.matcher(checkedLabel).replaceAll(""));
@@ -184,63 +188,52 @@ public static Lggr newLggr(String realm, String label, String comment) { // labe
 		System.out.println("newLggr FILTERED on creation: "+checkedRealm+" "+checkedLabel+" "+comment+( checkedRealmLabel.equals(realm+label) ? "" : " [REAL/LABEL CORRECTED]" ));  //DIAGN
 		return new Lggr(checkedRealm, checkedLabel, 0, "", 0);
 	}
-
-	Lggr newLggr;
+	// ----------------------
 	
-	synchronized(realmLabel2LggrList) {
+	// Duplicate?
+	Integer lastLggrN2 = realmLabel2lastLggrN2.get(checkedRealmLabel);
+	int n2 = lastLggrN2==null ? 0 : lastLggrN2+1;
+	realmLabel2lastLggrN2.put(checkedRealmLabel, n2);
 
-		LinkedHashSet<String> list = null; // DEV #6cb5e491  TODO JS
-		if ( null == (list=realm2labelList.get(checkedRealm)) ) {
-			realm2labelList.put(checkedRealm, list = new LinkedHashSet<String>() );
-		}
-		list.add(checkedLabel);
-		if ( null == (list=label2realmList.get(checkedLabel)) ) label2realmList.put(checkedLabel, list = new LinkedHashSet<String>() );
-		list.add(checkedRealm);
 
-		ArrayList<Tuple<Integer,WeakReference<Lggr>>> lggrList = realmLabel2LggrList.get(checkedRealmLabel);
-		if (lggrList==null) {
-			realmLabel2LggrList.put(checkedRealmLabel, (lggrList = new ArrayList<>()) );
+	long labelsCode = Filter.registerLabels( Arrays.stream(checkedLabel.split("#")) );
+
+	ArrayList<Tuple<String,WeakReference<Lggr>>> lggrList = null;
+	
+	Map<Long, ArrayList<Tuple<String,WeakReference<Lggr>>>> labelsCode2LggrList = realm2labelsCode2LggrList.get(checkedRealm);
+	if (null==labelsCode2LggrList) {
+		labelsCode2LggrList =  new ConcurrentHashMap<>();
+		lggrList = new ArrayList<>();
+	} else {
+		lggrList = labelsCode2LggrList.get(labelsCode);
+		if (null==lggrList) {
+			lggrList = new ArrayList<>();
 		} else {
-			// TODO #74bf4bb Async check WeakRefs, notify Client if any are gone, cleanup list
-			// TODO Notify cleanup daemon
-			//exctrService.execute( () -> { 
-			//	synchronized(realmLabel2LggrList) {
-					lggrList.removeIf( tpl -> {
-						if (tpl.t2.get()==null) {
-							complain("TODO #74bf4bb lggr "+checkedRealmLabel+";"+tpl.t1+" is gone.");
-							//...
-							return true;
-						}
-						return false;
-					});
-/* Pre Java 8:
-	ListIterator<String> iter = list.listIterator();
-	while(iter.hasNext()){
-		if("A".equals(iter.next())) {
-			iter.remove();
+			// Remove no longer referenced loggers from list:
+			lggrList.removeIf( tpl -> {
+				if (tpl.t2.get()==null) {
+					String longId2 = tpl.t1+"/"+Nr;
+					// #L Different longId syntax: Nr might have been unknown at moment of creation of list entry
+					complain("TODO #74bf4bb lggr "+longId2+" is gone.");
+					//...
+					return true;
+				}
+				return false;
+			});
 		}
 	}
-*/
-			//	}
-			//}); // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-		}
 
-		// Duplicate?
-		Integer lastLggrN2 = realmLabel2lastLggrN2.get(checkedRealmLabel);
-		int n2 = lastLggrN2==null ? 0 : lastLggrN2+1;
-		realmLabel2lastLggrN2.put(checkedRealmLabel, n2);
-		
-		newLggr = new Lggr(
+	Lggr newLggr = new Lggr(
 			checkedRealm, checkedLabel,
 			n2, // Realm+Label duplicate number
 			( comment = comment.trim()+( checkedRealmLabel.equals(realm+label) ? "" : " [REAL/LABEL CORRECTED]" ) ),
 			++numLggrs
-		);
-		newLggr.on = !"M".equals(filtered); //DOCU filter1 //DEV #6cb5e491
-		if (!newLggr.on) System.out.println("newLggr created no-messages FILTERED "+checkedRealm+" "+checkedLabel+" "+comment); //DIAGN
-		lggrList.add(new Tuple<Integer, WeakReference<Lggr>>(n2, new WeakReference<Lggr>(newLggr))); 
+			);
+	newLggr.on = !"M".equals(filtered); //DOCU filter1 //DEV #6cb5e491
 
-	}
+	// #L
+	lggrList.add(new Tuple<String, WeakReference<Lggr>>(checkedRealmLabel+(n2==0?"":";"+n2), new WeakReference<Lggr>(newLggr))); 
+
 
 	if (Nr==null) { // E.g. websocket not yet ready
 		nrBuffer.add(newLggr);
@@ -248,6 +241,7 @@ public static Lggr newLggr(String realm, String label, String comment) { // labe
 	} else {  // Since Nr exists, websocket works (except glitch)
 		makeKnown(newLggr);
 	}
+
 
 	System.out.println("newLggr on="+newLggr.on+" ignore="+newLggr.ignore+" "+realm+" "+label+" "+comment); //DIAGN
 

@@ -36,7 +36,7 @@ public class Lggr {
 	protected Lggr(String rlm, String lbl, Integer i2, String commnt, Integer n) {
 		realm = rlm; label = lbl; n2 = i2; comment = commnt; nr = n;
 		
-		if (n!=0) {  //DEV #6cb5e491
+		if (nr!=0) {  //DEV #6cb5e491
 			on=true; ignore=false; //TODO JS
 			repeatCounters = new Hashtable<String,Integer> ();
 			LogSocket.makeLggrIdStrings(this);

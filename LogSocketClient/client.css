@@ -1,104 +1,448 @@
-/* CONSTANTS: */
-/* box-shadow: 5px 5px 5px #333; */
-/*  rgb(0, 90, 90) == .fgDisco  */
+/* There are dependencies with JavaScript, e.g. #3aedf5bc */
 
-/* FIXME: CSS variables */
-/* TODO: Improve on "functional/atomic shorthand CSS" https://css-tricks.com/lets-define-exactly-atomic-css/ */
+/* Letter combination "hl" is reserved for dangerous (but effective) things like el.className.indexOf("hl") // #41f603b5 
+   Also later perhaps "bg" */
 
+ 
+:root {
+	font-family: system-ui, sans-serif;
+	--bgDisco: rgb(0, 128, 127);
+	--fgDisco: rgb(0, 90, 90);
+	--shadow: 5px 5px 5px rgb(10, 10, 10);
+	--btnWBg:    rgb(244, 244, 244);
+	--btnWHovr:  rgb(222, 222, 222);
+	--btnBg:     rgb(222,222,222);
+	--btnBgHovr: rgb(200,200,200);
+	--cntxtMnCrsr: pointer; /* Chrome has no context-menu cursor on Windows and most alternatives look ugly. */
+	--winRadius: 0.3rem;
+	--bttnIndent: 1.7rem; /* em varies! */
+	--bttnTop: 0.7rem;
 
-/* Extra HTML on/off */
-.test2 {
-	color: red;
-	display: none; /* comment out to switch on */
+	--fltrSTP:   rgb(185, 0, 0);     /* Logger stopped: filter "E" */ /* DOCU #2540b06f */
+	--fltrSIL:   rgb(0, 0, 185);     /* Logger silenced: filter "M" */
+	--fltrGC:    rgb(187, 187, 187); /* Logger garbage collected, no filter */
+	--fltrSTPGC: rgb(223, 151, 151); /* Logger garbage collected, filter "E" */
+	--fltrSILGC: rgb(151, 151, 223); /* Logger garbage collected, filter "M" */
+	
+	--bgDEV: rgb(255, 255, 187);
+/*	box-sizing: border-box;*/
 }
-
-/* Header whitespace  >>>>>>>>>>>>>>>>>>>>>>>>>> */
-.headr {
-	padding:0.1em;
-	border-radius: 0.2em;
-	box-shadow: 5px 5px 5px #333;
-	color: white;
-}
-/* Microsoft green */
-.Disco { background-color: rgb(0,128,127);} /*180, 170, 220*/
-.fgDisco {color: rgb(0, 90, 90);} /* = Disco*0.7 */
-
-.lggrTbl { 
-    border-spacing: 0px;
-    white-space: pre;
-}
-.lg:hover {
-	outline: dashed;
-	cursor: pointer;
-}
-/* <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< */
 
 
-/* Output space >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
-.output {
-	font-family: monospace, monospace;
-	white-space: pre-wrap;
-	word-break: break-all;
-}
-/* Command. NOTE !! Corresponds to HTML checkbox showCmdsID not checked. Cf. *.js 
-   Javascript toggles display:none/inline-block. Same with .ms below */
-.cmd { display: none; }
-/* Prefix */
-.pf {
-	color:rgb(57, 57, 255);
-	font-style: italic;
-}
-.pf:hover {
-	outline: dashed;
-	cursor: pointer;
-}
-/* Milliseconds */
-.ms {
-	color:rgb(122, 122, 122);
-	font-style: normal;
-	display: none;
-}
-.ex {
-	color: rgb(0,128,127);
-}
-.ex:hover {
-	outline: 1px solid rgb(0,90,90);
-	cursor: pointer;
-}
-/* Highlighted selection */
-.hl {cursor: help;} /* Chrome has no context-menu cursor on Windows and most alternatives look ugly. */
+/* General >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
 
-.dshdLn {border: 1px dashed rgb(0, 128, 127);}
-.dshdLn:hover {outline: 1px solid rgb(0,90,90);}
-/* <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< */
+.mnspcd  {font-family: monospace, monospace; } /* sic! */
+.smallr  {font-size: smaller;}
+.bold    {font-weight: 700;}
+.nobr    {white-space: nowrap;}
+.pre     {white-space: pre;}
+.hidden  {display: none;}
+.collpsd {line-height: 0; height: 1}
+.pn      {pointer-events: none;}
+.pa      {pointer-events: all;}
 
-/* General */
-.mnspcd { font-family: monospace, monospace; } /* sic! */
+.Disco   {background-color: var(--bgDisco);} /* Microsoft green */
+.fgDisco {color: var(--fgDisco);}
+.fgBlack {color: black;}
+
+.lineSpacer {height: 0.5em;} /* Not rem */
 
 .smallbtn {
 	font-size: smaller;
-	padding: 0px;
+	padding:0px;
 }
 
 
 
+/* Header >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
 
-/* Styling the HTML title="..." popup - not yet: https://github.com/w3c/csswg-drafts/issues/8930 
-    https://stackoverflow.com/questions/2011142/how-to-change-the-style-of-the-title-attribute-inside-an-anchor-tag
-*/
 
-/* Colors read/used by Javascript >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+#titleID {
+	background-color: var(--bgDisco);
+	font-family: ui-serif;
+	font-size: larger;
+	text-align: center;
+	padding: 0.1rem;
+	border-radius: 0.2rem;
+	box-shadow: var(--shadow);
+	outline: ridge 3px gold;
+	color: white;
+	cursor: help;
+	position:relative;
+	top: -3px;
+}
+
+
+/* >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+/* Loggers header/ dropdown window  >>>>>>>>>>>>>>>>>>>>>>>> */
+
+#loggersID {
+	resize: vertical; /* can break some things */
+	background-color: var(--btnWBg);
+	padding: 0.1rem 0.3rem;
+	font-size: smaller;
+	overflow: auto;
+	width: fit-content;
+	/* max-width set by JS #6e83e5b3 */
+}
+.lggrWinSection:not(:last-child) {
+	border-bottom: solid 1px;
+	padding-bottom: 0.5em; 
+	border-color: var(--bgDisco);
+	box-sizing: border-box;
+}
+#lggrTblTblID {
+	font-family: monospace, monospace;
+	padding-left: 0.3em;
+	padding-top: 0.3em; 
+    border-spacing: 0px;
+    line-height: 1.0;
+    white-space: pre;
+}
+.posLT {
+	position: fixed;
+	left: var(--bttnIndent);
+	top: 0px; /* overwritten by JS  #3aedf5bc */ 
+	z-index: 10;
+}
+.frame1 {
+	outline: solid 1px var(--bgDisco);
+	margin-left: 1rem; /* JS #6e83e5b3 */
+	opacity: 1;
+}
+.frame2 {
+	outline: ridge 2px var(--bgDisco);
+	border-radius: var(--winRadius);
+	margin-left: 0px;
+	box-shadow: var(--shadow);
+	opacity: 0;
+	display: none;
+}
+.frame2Tr {
+	transition: opacity 0.5s, display 0.5s allow-discrete ; /* #25035ec2 */
+}
+
+/* Logger list >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+.lg:hover {
+	outline: dashed var(--bgDisco);
+	cursor: var(--cntxtMnCrsr);
+}
+/* Logger status colors/decoration  //DOCU #2540b06f */
+.lg.gc.stp                 { color: var(--fltrSTPGC); text-decoration: line-through; }
+.lg.stp:not(.gc)           { color: var(--fltrSTP); }
+.lg.gc:not(.stp):not(.sil) { color: var(--fltrGC);  text-decoration: line-through; }
+.lg.sil:not(.gc)           { color: var(--fltrSIL); }
+.lg.gc.sil                 { color: var(--fltrSILGC); text-decoration: line-through; }
+
+
+/* Logger filter list >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+
+#filter1LstID {
+	font-family: monospace, monospace;
+	padding-left: 0.3em;
+	padding-top: 0.3em; 
+    border-spacing: 0px;
+    white-space: nowrap;
+    line-height: 1.1;
+}
+#filter1LstID span.s:hover {
+	border: dashed var(--bgDisco);
+	}
+
+.smallslct {
+	appearance: none;
+	padding: 0px;
+	margin: 0px;
+	border: none;
+	outline-width: 0px;
+	line-height: inherit;
+	font: inherit;
+	background-color: inherit;
+	color: inherit;
+}
+.smallslct.hover { /* CSS :hover would give bad flicker. Using JS. #490e293d */
+	appearance: auto;
+	padding: 0px;
+	margin: 0px;
+}
+.smallslct:focus:not(.hover) {appearance: auto; outline: auto;}
+
+#filter1LstID .smallbtn { display: none }
+
+
+/* >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+/* Output space >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+
+#outputID {
+	isolation: isolate; /* Forces creation of a stacking context. Was needed, suddenly not... WHY? */
+	font-family: monospace, monospace;
+	white-space: pre; /* no linewrap #7d185fc2 at init. For line wrap add class lnw to chunks (TODO #6103a6ee) */
+	margin: 0px;
+	padding: 0px;
+	border-width: 0px;
+}
+/* Output chunk */
+.chnk { border-bottom: 1px dashed red } /* added to chunk DIV by JS if TEST1==true #5cabad3d */
+/* Else not used. Was:                              */
+/*  .chnk {                                         */
+/*    content-visibility: auto;                     */
+/*    contain-intrinsic-height: auto;               */
+/*      JS adds chunk height #190d2905              */
+/*  }                                               */
+/* This plus contentvisibilityautostatechange event */
+/* is not working for 3 reasons... #note8           */
+/* Using IntersectionObserver instead.              */
+
+
+/* Log output line elements >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+/* 1) Prefix >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+.pf {
+	color:rgb(0, 0, 191);
+	font-style: italic;
+}
+.pf:hover {
+	outline: dashed var(--bgDisco);
+	cursor: var(--cntxtMnCrsr);
+}
+
+/* 2) Milliseconds >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+.ms { color:rgb(138, 70, 19); } /* Also used by logger table */
+.msh .ms {display: none;} /* .msh: chunk-wide off switch */
+
+
+/* 3) Extratext window >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+
+/* Symbol(s) to click for extratext window popup/hide */
+.xtS {
+	position: relative; /* needs to be positioned, so xtW can get positioned "relative" to xtS  */
+	line-height: 0; /* Some UTF-8 symbols are too high, changing them changes line hight, ugly */
+	color: var(--bgDisco);
+	white-space: nowrap;
+}
+.xtS:hover {
+	outline: dashed var(--bgDisco);
+	cursor: pointer;
+}
+/* Extratext Window */
+.xtW {
+	resize: vertical; /* #6660f095 */
+	transition: right 200ms, width 200ms, top 0.5s, opacity 0.5s, display 0.5s allow-discrete;
+	/* #25035ec2 transition of display to "none" works, but not to "inline-block". */
+	/*           So we need setTimeout(()=>{xtWinEl.style.opacity = 1;}, 1); when setting xtWinEl.style.display = "inline-block"; */
+	outline: solid 1px var(--fgDisco);
+	box-shadow: var(--shadow);
+	padding: 0.3rem;
+	cursor: default;
+	font-family: monospace, monospace;
+	font-size: smaller;
+	color: black;
+	overflow: auto;
+	white-space: pre;
+	z-index: 5;
+	top: 0px;       	/* top right aligned to top right of xtS */
+	right: 0px;
+	position: absolute; /* :-)  "The element is positioned /relative/ to its closest positioned ancestor"  */
+	line-height: normal;
+	opacity: 1;
+}
+
+/* Special output lines >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+
+/* 1) Command >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+/* A non log output line that can be hidden */
+.cmd { display: none; }
+
+
+/* 2) Infoline >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+/* Extra line marking start of a search/highlight upward. New ones added below last output line */
+.infoLine {
+	z-index: -1;
+	line-height: 1;
+	position: relative;
+	color: var(--bgDisco);
+	font-size: smaller;
+	margin: 0px;
+	padding: 0px;
+	border-top: 0px;
+	border-bottom: 1px dashed var(--bgDisco);
+	background-color: var(--btnWBg);
+}
+.infoLine:hover {z-index: 10;}
+.iLSym {
+	line-height:0;
+}
+.iLSym:hover { /* TODO #6b2b50f8 Navigate to next infoLine: right-click (down) left-click (up) */
+	background-color: var(--btnWHovr);
+	cursor: pointer;
+}
+/* <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Output space */
+/* <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< */
+
+
+/* >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+/* Buttons for info/menu dropdown windows >>>>>>>>>>>>>>>>>> */
+#lggrsButtonID {
+	position:fixed;
+	left: var(--bttnIndent); 
+	top: var(--bttnTop);
+}
+
+.drpdwnWinBttn {
+	border-radius: 0.15rem;
+	position:relative;top:0px;left:0px; z-index: 130;
+	outline: outset 2px rgb(180, 180, 180); /* #3aedf5bc */
+	padding:0px; margin:0px;
+	background-color: var(--btnBg);
+	box-shadow: var(--shadow);
+	pointer-events: auto;
+}
+.drpdwnWinBttn:hover {
+	background-color: var(--btnBgHovr);
+	cursor: pointer;
+}
+.drpdwnWinBttnWhite {
+	border-radius: 0.15rem;
+	position:relative;top:0px;left:0px; z-index: 130;
+	outline: outset 2px rgb(180, 180, 180); /* #3aedf5bc */
+	padding:0px; margin:0px;
+	background-color: var(--btnWBg);
+	box-shadow: var(--shadow);
+	pointer-events: auto;
+	display: none;
+}
+.drpdwnWinBttnWhite:hover {
+	background-color: var(--btnWHovr);
+	cursor: pointer;
+}
+.sym { line-height:0; } /* doesn't help anything */
+
+
+/* >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+/* Right side dropdown menus >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+
+#drpdwnWinBttnsID {
+	position:fixed;
+	z-index:100;
+	right: var(--bttnIndent);
+	top:  var(--bttnTop);
+	text-align:right;
+}
+
+.posRT {
+	position: fixed;
+	right: var(--bttnIndent);
+	top:1.2em;
+	z-index: 10;
+}
+	
+.dropdownR {
+	display: block;
+	z-index: 10;
+	outline: ridge 2px #aaa;
+	margin-bottom: 4px;
+	padding: 0.3rem;
+	border-radius: var(--winRadius);
+	background-color: rgb(222, 222, 222);
+	box-shadow: var(--shadow);
+
+	pointer-events: auto;
+	text-align: right;
+	display: none; /* #499996d7 !! */
+	opacity: 1;
+	transition: opacity 0.5s, display 0.5s allow-discrete ; /* #25035ec2 */
+}
+
+/* Color menu >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+
+.boxed {outline: 2px solid black;}
+
+#hlColrsID>span, #hlxColrsID>span {margin: 2px;}
+
+.hoverbox span:not(.boxed):hover {
+	outline: dashed grey;
+	cursor: pointer;
+}
+
+
+/* >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+/* Client message window >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+.clientMsgs { /* When using #clientMsgsID instead, the fadeout doesn't work #2a77d95a*/
+	position:fixed;
+	z-index: 2;
+	left:50%;
+	top: calc( var(--bttnTop) - 3px ); 
+	translate: -50%;
+	text-align:center;
+	color: var(--fgDisco);
+	white-space: nowrap;
+	display:inline;
+	box-shadow: var(--shadow);
+	outline: ridge 2px var(--bgDisco);
+	padding: 0.1rem;
+	margin: 3px; /* #3aedf5bc */
+	opacity: 1;
+	background-color: rgb(228, 243, 243);
+	line-height:1;
+
+}
+/*.clientMsgs:hover {opacity: 1;}  Not working. Using JS instead */
+/*.fadeout:hover {opacity: 1;}     Not working  #88dff0a */
+.fadeout { /* Not working like .msh .ms above!!! */
+	opacity: 0.3;
+	transition: opacity 1s, width 1s;
+}
+.clntMsgRed {
+	color: red;
+	font-weight: 700;
+}
+.clntMsgBlue { color: blue; }
+
+
+
+
+/* >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+/* Context popup menus >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+
+.contextMenu {
+	position: absolute; z-index: 20;
+	top:0px;
+	left:0px;
+	outline: ridge 2px #aaa;
+	background-color: white;
+	padding: 0.3rem;
+	box-shadow: var(--shadow);
+	color: grey;
+	display: none;
+	white-space: nowrap;
+	transition: opacity 0.5s, display 0.5s allow-discrete;  /* #25035ec2 TODO */
+}
+.contextMenu .active:hover { background-color: #dcdcdc; } /* :not(.hint) :not(div, .hint)  */
+.contextMenu .active {
+	cursor: pointer;
+	color: black;
+}
+.contextMenu .hint {
+	background-color: white;
+	color: var(--fgDisco);
+	text-align: right;
+	font-size: smaller;
+	line-height:1;
+} 
+
+.ctxHvr { outline: dashed var(--bgDisco); } /* To keep up the :hover when mouse hovers over context menu */
+
+
+/* >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+/* Colors read/used by Javascript >>>>>>>>>>>>>>>>>>>>>>>>>> */
+
 /* Automatic highlight colors Max. 10, 0...9     */
 .hl0 {background-color: rgb(139, 166, 222);}
-.hl1 {background-color: rgb(167, 126, 235);}
-.hl2 {background-color: rgb(210, 155, 172);}
-.hl3 {background-color: rgb(223, 217, 138);}
-.hl4 {background-color: rgb(182, 205, 156);}
-.hl5 {background-color: rgb(225, 136, 181);}
-.hl6 {background-color: rgb(167, 167, 194);}
-.hl7 {background-color: rgb(126, 235, 226);}
-
-/* .hl4 {background-color: rgb(146, 190, 190);} */
+.hl1 {background-color: rgb(210, 155, 172);}
+.hl2 {background-color: rgb(214, 205, 105);}
+.hl3 {background-color: rgb(182, 205, 156);}
+.hl4 {background-color: rgb(234, 128, 138);}
+.hl5 {background-color: rgb(167, 167, 194);}
+.hl6 {background-color: rgb(126, 235, 226);}
 
 /* Extra highlight colors, user choice only. Max. 10, 0...9 */
 .hlx0 {background-color: rgb(255, 0, 0);}
@@ -107,214 +451,104 @@
 .hlx3 {background-color: rgb(180, 7, 255);}
 .hlx4 {background-color: rgb(73, 177, 245);}
 
-/* Loggers. Single Letters A-Z only. */
-
-.bgC0 { background-color: rgb(218, 240, 217);}
-/* .bgC1 { background-color: rgb(218, 240, 217, 0.69);} */
-.bgA0 { background-color: rgb(230, 231, 242);}
-/* .bgA1 { background-color: rgb(230, 231, 242, 0.70);} */
-.bgB0 { background-color: rgb(202, 226, 249);}
-/* .bgB1 { background-color: rgb(202, 226, 249, 0.78);} */
-.bgR0 { background-color: rgb(200, 200, 255);} 
-/* .bgR1 { background-color: rgb(200, 200, 255, 0.83);} */
-.bgJ0 { background-color: rgb(220, 201, 245);}
-/* .bgJ1 { background-color: rgb(220, 201, 245, 0.80);} */
-.bgN0 { background-color: rgb(231, 219, 232);} 
-/* .bgN1 { background-color: rgb(231, 219, 232, 0.77);} */
-.bgQ0 { background-color: rgb(238, 225, 176);} 
-/* .bgQ1 { background-color: rgb(238, 225, 176, 0.80);}  */
-.bgO0 { background-color: rgb(242, 209, 183);} 
-/* .bgO1 { background-color: rgb(242, 209, 183, 0.80);}  */
-/* Blank in ", " used by JavaScript! */
-
-/* Computed by script #655e8593 from comments above, where transparency is used for quick fine-tuning */
-/* Remove comments for more tinkering. Transparency spoils drop-down windows.  */
-.bgC1 { background-color: rgb(229, 245, 229);}
-.bgA1 { background-color: rgb(238, 238, 246);}
-.bgB1 { background-color: rgb(214, 232, 250);}
-.bgR1 { background-color: rgb(209, 209, 255);}
-.bgJ1 { background-color: rgb(227, 212, 247);}
-.bgN1 { background-color: rgb(237, 227, 237);}
-.bgQ1 { background-color: rgb(241, 231, 192);}
-.bgO1 { background-color: rgb(245, 218, 197);}
-
-/* Other Colors TODO without transparency #655e8593 */
-.bgServer0 { background-color: rgb(57, 255, 57);} 
-.bgServer1 { background-color: rgb(57, 255, 57, 0.82);} 
-.bgLgSckt0 { background-color: rgb(168, 140, 213);} /* logrocket.com #754abc*/
-.bgLgSckt1 { background-color: rgba(168, 140, 213, 0.82);}
-.bgBuffer0 { background-color: rgb(184, 172, 29);}
-.bgBuffer1 { background-color: rgba(184, 172, 29, 0.82);}
-.bgError0 {	background-color: rgb(255, 128, 128);}
-.bgError1 {	background-color: rgba(255, 128, 128, 0.82);}
-/* This GUI */
-.bgDisco0 {	background-color: rgb(120, 186, 186); }
-.bgDisco1 {	background-color: rgb(120, 186, 186, 0.88);}
-.bgErrr0 { background-color: rgb(255, 17, 17);}
-.bgErrr1 { background-color: rgba(255, 17, 17, 0.82);}
+#outputID .hl0:hover { outline: dashed var(--bgDisco); cursor: var(--cntxtMnCrsr); }
+#outputID .hl1:hover { outline: dashed var(--bgDisco); cursor: var(--cntxtMnCrsr); }
+#outputID .hl2:hover { outline: dashed var(--bgDisco); cursor: var(--cntxtMnCrsr); }
+#outputID .hl3:hover { outline: dashed var(--bgDisco); cursor: var(--cntxtMnCrsr); }
+#outputID .hl4:hover { outline: dashed var(--bgDisco); cursor: var(--cntxtMnCrsr); }
+#outputID .hl5:hover { outline: dashed var(--bgDisco); cursor: var(--cntxtMnCrsr); }
+#outputID .hl6:hover { outline: dashed var(--bgDisco); cursor: var(--cntxtMnCrsr); }
+#outputID .hlx0:hover { outline: dashed var(--bgDisco); cursor: var(--cntxtMnCrsr); }
+#outputID .hlx1:hover { outline: dashed var(--bgDisco); cursor: var(--cntxtMnCrsr); }
+#outputID .hlx2:hover { outline: dashed var(--bgDisco); cursor: var(--cntxtMnCrsr); }
+#outputID .hlx3:hover { outline: dashed var(--bgDisco); cursor: var(--cntxtMnCrsr); }
+#outputID .hlx4:hover { outline: dashed var(--bgDisco); cursor: var(--cntxtMnCrsr); }
 
 
-/* Color dialog */
-.boxed {outline: 2px solid black;}
-#hlColrsID>span, #hlxColrsID>span {margin: 2px;}
-.hoverbox span:not(.boxed):hover {
-	outline: dashed grey;
-	cursor: pointer;
+/* Logger Background colors with stripe effect. Single Letters A-Z only. */
+/* (COPYPASTE #7eb9e155 to TEST.jsp) */
+/* lggrClrs = ["C","A","M","R","J","N","Q","O"]; // COPYPASTE #2419b81e  Don't mess this up! */
+
+/* ***************************** */
+/* OUTPUT of clrOptmzr.js:       */
+/* Logger background colors      */
+/* ***************************** */
+/* #g968 */
+/* Fri Mar 01 2024 15:46:32 GMT+0100 (Central European Standard Time) */
+/* Transp. modified */
+.bgC2 { background-color: rgb(201, 242, 207, 0.75);}
+.bgA2 { background-color: rgb(205, 223, 218, 0.8);}
+.bgM2 { background-color: rgb(183, 236, 227, 0.8);}
+.bgR2 { background-color: rgb(186, 222, 244, 0.8);}
+.bgJ2 { background-color: rgb(204, 208, 253, 0.8);}
+.bgN2 { background-color: rgb(224, 208, 226, 0.8);}
+.bgQ2 { background-color: rgb(244, 212, 207, 0.8);}
+.bgO2 { background-color: rgb(228, 228, 199, 0.8);}
+/* bgX0 == bgX2 without transparency: */
+.bgC0 { background-color: rgb(201, 242, 207);}
+.bgA0 { background-color: rgb(205, 223, 218);}
+.bgM0 { background-color: rgb(183, 236, 227);}
+.bgR0 { background-color: rgb(186, 222, 244);}
+.bgJ0 { background-color: rgb(204, 208, 253);}
+.bgN0 { background-color: rgb(224, 208, 226);}
+.bgQ0 { background-color: rgb(244, 212, 207);}
+.bgO0 { background-color: rgb(228, 228, 199);}
+/* bgX1 == no-transparency RGB from bgX2 being transparent on white: */
+.bgC1 { background-color: rgb(215, 245, 219);}
+.bgA1 { background-color: rgb(215, 229, 225);}
+.bgM1 { background-color: rgb(197, 240, 233);}
+.bgR1 { background-color: rgb(200, 229, 246);}
+.bgJ1 { background-color: rgb(214, 217, 253);}
+.bgN1 { background-color: rgb(230, 217, 232);}
+.bgQ1 { background-color: rgb(246, 221, 217);}
+.bgO1 { background-color: rgb(233, 233, 210);}
+
+
+/*  #7e821f32 Other Colors  (Loggers and Other lumped together for performance) */
+
+.bgS0 { background-color: rgb(57, 255, 57);}    /** S erver **/
+.bgS2 { background-color: rgb(57, 255, 57, 0.75);}
+.bgL0 { background-color: rgb(168, 140, 213);}  /** L ogSocket **/  /* logrocket.com :-) #754abc */
+.bgL2 { background-color: rgb(168, 140, 213, 0.82);}
+.bgB0 { background-color: rgb(184, 172, 29);}   /** B uffer **/
+.bgB2 { background-color: rgb(184, 172, 29, 0.82);}
+.bgE0 {	background-color: rgb(255, 128, 128);}  /** E rror **/
+.bgE2 {	background-color: rgb(255, 128, 128, 0.82);}
+.bgD0 {	background-color: rgb(120, 186, 186); } /** D isco **/
+.bgD2 {	background-color: rgb(120, 186, 186, 0.88);}
+.bgF0 { background-color: rgb(255, 17, 17);}    /** F ail **/
+.bgF2 { background-color: rgb(255, 17, 17, 0.82);}
+
+/* Computed in client_init.js #655e8593 from bgX2 above */
+.bgS1 { background-color: rgb(107, 255, 107);}
+.bgL1 { background-color: rgb(184, 161, 221);}
+.bgB1 { background-color: rgb(197, 187, 70);}
+.bgE1 { background-color: rgb(255, 151, 151);}
+.bgD1 { background-color: rgb(136, 194, 194);}
+.bgF1 { background-color: rgb(255, 60, 60);}
+/* <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< */
+
+
+/* Extra HTML on/off */
+.TESThtml {
+	background-color: rgb(255, 255, 128);
+	color: red;
+ 	display: none;
+ 	/* comment out to switch on */
 }
 
-.drpdwnbtn {
-	outline: outset 3px rgb(180, 180, 180);
-	background-color: rgb(222,222,222);
-	box-shadow: 5px 5px 5px #333;
-	pointer-events: auto;
-}
-.drpdwnbtn:hover {
-	background-color: rgb(200,200,200);
-	cursor: pointer;
-}
-
-
-.dialog {
-	outline: ridge #aaa;
-	padding: 0.3em;
-	border-radius:0.5em;
-	background-color:rgb(222, 222, 222);
-	box-shadow: 5px 5px 5px #333;
-}
-.dialogWrppr {
-	opacity: 1;
-	pointer-events: auto;
-	text-align: right;
-	display: inline-block;
-}
-
-.popup {
-	outline: ridge #aaa;
-	background-color: white;
-	padding: 0.3em;
-	box-shadow: 5px 5px 5px #333;
-	color: grey;
-	position: absolute; /* needed to make shadow appear on elements below */
-	display: none;
-}
-.popup .active:hover { background-color: #dcdcdc; } /* :not(.ppHint) :not(div, .ppHint)  */
-.popup .active {
-	cursor: pointer;
+#TESTwin1ID {
+	font-weight: normal;
 	color: black;
-}
-.popup .ppHint {
-	background-color: white;
-	color: rgb(0, 90, 90);/* .fgDisco */
-	text-align: right;
-	font-size: smaller;
-} 
+}	
+	
+	
+.DEV { background-color: var(--bgDEV); }
+/* DEV >>>> */
+/* <<<<<<<< */
 
-.poppWin {
-	width: fit-content;
-	outline: solid 1px rgb(0,128,127);
-	padding: 0px;
-	box-shadow: 5px 5px 5px #333;
-	position: absolute; /* needed to make shadow appear on elements below */
-	display: none;
-}
-.poppWinTxt {
-	padding: 0.3em;
-	font-family: monospace, monospace;
-	font-size: smaller;
-	overflow-x: auto;
-	white-space: pre;
-}
-.x {
-	color: rgb(0, 128, 127); /* .fgDisco */
-	position: absolute;
-	top: -0.33em;
-	right: 0px;
-}
-.x:hover {
-	outline: 1px dashed rgb(0,90,90);
-	cursor: pointer;
-}
-
-/*
-
-
-/*
-
-		.bgC0 { background-color: rgb(216, 230, 230) }
-		.bgC1 { background-color: rgb(216, 230, 230, 0.75) }
-		.bgA0 { background-color: rgb(216, 217, 235) }
-		.bgA1 { background-color: rgb(216, 217, 235, 0.75) }
-		.bgJ0 { background-color: rgb(235, 228, 216);}
-		.bgJ1 { background-color: rgb(235, 228, 216, 0.75);}
-		.bgN0 { background-color: rgb(231, 219, 232);} 
-		.bgN1 { background-color: rgb(231, 219, 232, 0.75);}
-		.bgH0 { background-color: rgb(216, 235, 217);}
-		.bgH1 { background-color: rgb(216, 235, 217, 0.75);}
-		.bgL0 { background-color: rgb(235, 216, 219);}
-		.bgL1 { background-color: rgb(235, 216, 219, 0.75);}
-		.bgT0 { background-color: rgb(225, 225, 225);}
-		.bgT1 { background-color: rgb(225, 225, 225, 0.75);}
-
-
-.bgW0 { background-color: rgb(225, 225, 225); }  
-.bgD0 { background-color: rgb(225, 225, 225); } 
-.bgY0 { background-color: rgb(250, 235, 198); }
-.bgF0 { background-color: rgb(239, 225, 211); } 
-.bgE0 { background-color: rgb(235, 223, 211);}
-.bgE1 { background-color: rgb(235, 223, 211, 0.82);}
-
-.bgZ0  { background-color: white; }  
-
-
-
-
-.bgZ0 { background-color: white;}
-
-.bgS0 { background-color: rgb(205, 205, 245);}
-.bgS1 { background-color: rgb(205, 205, 245, 0.82);}
-.bgB0 { background-color: rgb(230, 224, 216) }
-.bgB1 { background-color: rgb(230, 224, 216, 0.82) }
-.bgD0 { background-color: rgb(230, 216, 216) }
-.bgD1 { background-color: rgb(230, 216, 216, 0.82) }
-.bgE0 { background-color: rgb(230, 230, 230) }
-.bgE1 { background-color: rgb(230, 230, 230, 0.82) }
-.bgF0 { background-color: rgb(230, 230, 250);}
-.bgF1 { background-color: rgb(230, 230, 250, 0.82);}
-even more below
-*/
-/* <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< */
-
-
-/* .bgZ0 { background-color: white;} */
-
-/* #d8d9eb */
-/*
-.bgH0 { background-color: rgb(216, 235, 217);} 
-.bgH1 { background-color: rgb(216, 235, 217);}
-.bgI0 { background-color: rgb(228, 235, 216);}
-.bgI1 { background-color: rgb(228, 235, 216);}
-.bgJ0 { background-color: rgb(235, 228, 216);}
-.bgJ1 { background-color: rgb(235, 228, 216);}
-.bgK0 { background-color: rgb(216, 217, 235);}
-.bgK1 { background-color: rgb(216, 217, 235);}
-.bgL0 { background-color: rgb(235, 216, 219);}
-.bgL1 { background-color: rgb(235, 216, 219);}
-*/
-/* .bgY0 { background-color: white;} */
-/* #d5d1bf */
-/*
-.bgN0 { background-color: rgb(231, 219, 232);} 
-.bgN1 { background-color: rgb(231, 219, 232);}
-.bgO0 { background-color: rgb(222, 219, 232);}
-.bgO1 { background-color: rgb(222, 219, 232);}
-.bgP0 { background-color: rgb(219, 225, 232);}
-.bgP1 { background-color: rgb(219, 225, 232);}
-.bgQ0 { background-color: rgb(232, 230, 219);}
-.bgQ1 { background-color: rgb(232, 230, 219);}
-.bgR0 { background-color: rgb(219, 232, 228);}
-.bgR1 { background-color: rgb(219, 232, 228);}
-
+/* Styling the HTML title="..." popup - not yet: https://github.com/w3c/csswg-drafts/issues/8930 
+    https://stackoverflow.com/questions/2011142/how-to-change-the-style-of-the-title-attribute-inside-an-anchor-tag
 */
 
-
-
+       
