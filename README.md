@@ -19,8 +19,8 @@ The performance of JavaScript/DOM in Chrome is quite amazing: In the first strai
 1) As already indicated, a major point is the user interface that helps seeing the trees in the forest by coloring them.
 2) Log messages usually come in single long lines. Formatted text with line breaks (like key-value lists, Java stack traces, JSON objects, etc) goes into an extra popup window (e.g. the http headers behind …▼ in the screenshot).
 3) My loggers are objects with a finalization method upon garbage collection. Beyond logging, their silent existence can be used to trace the creation and destruction of objects. (Screenshot coming soon.)
-4) A flexible labelling system allows for fine-grained and quick filtering of (un)wanted loggers at run time.
-5) Additional logger functionality can be programmed when needed, e.g. single-message loggers, timers, observers, ...
+4) A flexible labelling system (beyond RFC 5424 log levels) allows for fine-grained and quick filtering of (un)wanted loggers at run time.
+5) Additional logger functionality can be programmed when needed, e.g. single-message loggers, timers, observers, ... Ultimately the loggers might even correspond in a JavaScript sandbox - extending my tool to distributed systems testing. (The infamous [Log4Shell](https://en.wikipedia.org/wiki/Log4Shell) vulnerability comes to mind: Here it would be a feature, not a bug.)
 6) 10µs precision distributed clock synchronization.
 7) Support for timing and benchmarking statistics, like in the following experiment:
 
