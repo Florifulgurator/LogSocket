@@ -10,7 +10,7 @@ The exercise consists of a hybrid of the chat server pattern and the logger patt
 
 ![Color test](./Screenshots/LogSocketClient_ColorTest.PNG)
 
-The performance of JavaScript/DOM in Chrome is quite amazing: In the first straight-forward implementation it took a second or two to (un)wrap 10000 long lines of double Lorem Ipsum, or to color 30000 search results on an elderly laptop. However, the memory consumption then approaches 1GB, which is less impressive. For me, a second is too long (I'm used to late 20th century Linux desktop performance), so I added some optimization for quick click reactivity.[^2]
+The performance of JavaScript/DOM in Chrome is quite amazing: In the first straight-forward implementation it took a second or two to (un)wrap 10000 long lines of double Lorem Ipsum, or to color 30000 search results on an elderly laptop. However, the memory consumption then approaches 1GB, which is less impressive. For me, a second is far too long (I'm used to late 20th century Unix X11 desktop performance), so I added some optimization for quick click reactivity.[^2]
 
 [^2]: The new CSS `content-visibility` property spoils my design (note line overshoot in screenshot) and Chrome's `contentvisibilityautostatechange` event is buggy - but [IntersectionObserver](https://developer.mozilla.org/en-US/docs/Web/API/Intersection_Observer_API) speeds up rendering performance just as well, if not better, when combined with my tiny async functional framework. Javascript Web APIs like this is why I enjoy JavaScript so much more than 10 years ago. Down with extra libs and frameworks!
 
