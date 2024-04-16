@@ -3,8 +3,18 @@
 
 Demonstrable version coming soon... Meanwhile you might at least have a glimpse at my coding skills.
 
-The whole Thing (if it is one) started as a wild programming exercise in late September 2023. I wanted to get fluent again after some years of hiatus and try out everything, from CSS to JavaScript to Java - except databases. The exercise consists of a hybrid of the chat server pattern and the logger pattern, plus, a helpful user interface for big monospaced plain text in technicolor.
+The whole Thing (if it is one) started as a wild programming exercise in late September 2023. I wanted to get fluent again after some years of hiatus and try out the full stack, from color space, CSS, HTML to JavaScript and Java, some functional vs. classical OO programming, JavaScript promises vs. Java futures, garbage collection, etc. - except SQL...
 
+The exercise consists of a hybrid of the chat server pattern and the logger pattern, plus, a helpful web browser based user interface for big monospaced plain text in technicolor. All in bare bones Java/JavaScript (not even jQuery) for good reason. The logger can be implemented in any language that supports WebSockets (and ideally weak references). Here is an outdated screenshot with colors picked by eyeballing:
+
+![Color test](./Screenshots/LogSocketClient_ColorTest.PNG)
+
+The performance of JavaScript/DOM in Chrome is quite amazing: It takes a second to fold 10000 lines of double Lorem Ipsum, or to color 30000 search results. However, the memory consumption then approaches 1GB, which is less impressive. For me, a second takes too long (I'm used to late 20th century Linux desktop performance), so I added some optimization: The new CSS `content-visibility` property spoils my design (note line overshoot in screenshot) and Chrome's `contentvisibilityautostatechange` event is buggy - but [IntersectionObserver](https://developer.mozilla.org/en-US/docs/Web/API/Intersection_Observer_API) speeds up rendering performance just as well, if not better. Javascript Web APIs like this is why I enjoy JavaScript so much more than 10 years ago. Down with extra libs and frameworks!
+
+## Why yet another logger?
+...
+
+## Erlang!
 A nice experimental result is the Erlang distribution in situ, which was first found for early telephone systems and also looks valid in my 3-websocket system: This sample uses a plain java.net.http.WebSocket logger, a Tomcat javax.websocket server, and a JavaScript websocket client in a Chrome browser window in an elderly laptop. (A javax.websocket logger at a 2nd Tomcat is half as fast, with a similar looking distribution. TODO: Try TooTallNate's org.java_websocket, perhaps minimize for logger.)
 ```
 N=3500 Min=62.9 Max=8267.7 Median=116 Mean=173.4
