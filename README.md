@@ -1,7 +1,7 @@
 # LogSocket
 ~ My cross-platform diagnostics logging tool ~
 
-Demonstrable version coming soon...
+Demonstrable version coming soon... Meanwhile you might at least have a glimpse at my coding skills.
 
 The whole Thing (if it is one) started as a wild programming exercise in late September 2023. I wanted to get fluent again after some years of hiatus and try out everything, from CSS to JavaScript to Java - except databases. The exercise consists of a hybrid of the chat server pattern and the logger pattern, plus, a helpful user interface for big monospaced plain text in technicolor.
 
