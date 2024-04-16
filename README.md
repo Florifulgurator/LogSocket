@@ -4,13 +4,15 @@ Demonstrable version coming soon... Meanwhile you might at least have a glimpse 
 
 The whole Thing (if it is one) started as a wild programming exercise in late September 2023. I wanted to get fluent again after some years of hiatus and try out the full stack, from color space, CSS, HTML to JavaScript and Java, some functional vs. classical OO programming, JavaScript promises vs. Java futures, garbage collection, etc. - except SQL...
 
-The exercise consists of a hybrid of the chat server pattern and the logger pattern, plus, a helpful web browser UI for big monospaced plain text in technicolor. All in bare bones Java/JavaScript (not even jQuery) for good reason. The loggers can be implemented in any language that supports WebSockets (and ideally weak references). Here is an outdated screenshot with colors picked by eyeballing:
+The exercise consists of a hybrid of the chat server pattern and the logger pattern, plus, a helpful web browser UI for big monospaced plain text in technicolor. All in bare bones Java/JavaScript (not even jQuery) for good reason. The loggers can be implemented in any language that supports WebSockets (and ideally weak references). Here is an outdated screenshot with colors picked by eyeballing:[^1]
+
+[^1]: I spent considerable time optimizing the colors by hand. Then I wrote a color optimization tool (crude "Monte-Carlo" method using the redmean metric) which itself required some optimization. It turned out my eyes are almost good enough. The  (TODO: Better formula for [color-space metric](https://en.wikipedia.org/wiki/Color_difference).)
 
 ![Color test](./Screenshots/LogSocketClient_ColorTest.PNG)
 
-The performance of JavaScript/DOM in Chrome is quite amazing: In the first straight-forward implementation it took a second or two to (un)wrap 10000 long lines of double Lorem Ipsum, or to color 30000 search results on an elderly laptop. However, the memory consumption then approaches 1GB, which is less impressive. For me, a second is too long (I'm used to late 20th century Linux desktop performance), so I added some optimization for quick click reactivity.[^1]
+The performance of JavaScript/DOM in Chrome is quite amazing: In the first straight-forward implementation it took a second or two to (un)wrap 10000 long lines of double Lorem Ipsum, or to color 30000 search results on an elderly laptop. However, the memory consumption then approaches 1GB, which is less impressive. For me, a second is too long (I'm used to late 20th century Linux desktop performance), so I added some optimization for quick click reactivity.[^2]
 
-[^1]: The new CSS `content-visibility` property spoils my design (note line overshoot in screenshot) and Chrome's `contentvisibilityautostatechange` event is buggy - but [IntersectionObserver](https://developer.mozilla.org/en-US/docs/Web/API/Intersection_Observer_API) speeds up rendering performance just as well, if not better, when combined with my tiny async functional framework. Javascript Web APIs like this is why I enjoy JavaScript so much more than 10 years ago. Down with extra libs and frameworks!
+[^2]: The new CSS `content-visibility` property spoils my design (note line overshoot in screenshot) and Chrome's `contentvisibilityautostatechange` event is buggy - but [IntersectionObserver](https://developer.mozilla.org/en-US/docs/Web/API/Intersection_Observer_API) speeds up rendering performance just as well, if not better, when combined with my tiny async functional framework. Javascript Web APIs like this is why I enjoy JavaScript so much more than 10 years ago. Down with extra libs and frameworks!
 
 ## Why yet another logger?
 
