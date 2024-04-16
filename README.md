@@ -6,7 +6,7 @@ The whole Thing (if it is one) started as a wild programming exercise in late Se
 
 The exercise consists of a hybrid of the chat server pattern and the logger pattern, plus, a helpful web browser UI for big monospaced plain text in technicolor. All in bare bones Java/JavaScript (not even jQuery) for good reason. The loggers can be implemented in any language that supports WebSockets (and ideally weak references). Here is an outdated screenshot with colors picked by eyeballing:[^1]
 
-[^1]: I spent considerable time optimizing the colors by hand. Then I wrote a color optimization tool (crude "Monte-Carlo" method using the redmean metric) which itself required some optimization. It turned out my eyes are almost good enough. The  (TODO: Better formula for [color-space metric](https://en.wikipedia.org/wiki/Color_difference).)
+[^1]: I spent considerable time optimizing the colors by hand. Then I wrote a color optimization tool (crude "Monte-Carlo" method using the redmean metric) which itself required some optimization. It turned out my eyes are almost good enough.  (TODO: Better formula for [color-space metric](https://en.wikipedia.org/wiki/Color_difference).)
 
 ![Color test](./Screenshots/LogSocketClient_ColorTest.PNG)
 
