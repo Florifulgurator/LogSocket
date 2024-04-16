@@ -2,7 +2,7 @@
 
 Demonstrable version coming soon... Meanwhile you might at least have a glimpse at my coding skills.
 
-The whole Thing (if it is one) started as a wild programming exercise in late September 2023. I wanted to get fluent again after some years of hiatus and try out the full stack, from color space, CSS, HTML to JavaScript and Java, some functional vs. classical OO programming, JavaScript promises vs. Java futures, garbage collection, etc. - except SQL...
+The whole Thing (if it is one) started as a wild programming exercise in late September 2023. I wanted to get fluent again after some years of hiatus and try out the full stack, from color space, CSS, HTML to JavaScript and Java, some functional vs. classical OO programming, JavaScript promises vs. Java futures, weak references and garbage collection, etc. - except for SQL (which is meanwhile peeking in through the back door)...
 
 The exercise consists of a hybrid of the chat server pattern and the logger pattern, plus, a helpful web browser UI for big monospaced plain text in technicolor. All in bare bones Java/JavaScript (not even jQuery) for good reason. The loggers can be implemented in any language that supports WebSockets (and ideally weak references). Here is an outdated screenshot with colors picked by eyeballing:[^1]
 
