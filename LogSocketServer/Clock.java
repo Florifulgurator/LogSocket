@@ -145,11 +145,11 @@ LogSocketServer.exctrService.execute( () -> { // >>>>>>>>>>>>>>>>>>
 	_avgC[0] /= usedLen; _avgS[0] /= usedLen; _avgCS[0] /= usedLen; _T0corr[0] /= usedLen;
 	_x[0] /= usedLen; // #E
 
-	LogSocketServer.sendText(sess, "%T0CORR OK "+_T0corr[0]+" "+round3(_avgC[0])+" "+round3(_avgS[0]) //#e7c370d7
+	LogSocketServer.sendText(sess, "%T0CORR OK "+round6(_T0corr[0])+" "+round3(_avgC[0])+" "+round3(_avgS[0]) //#e7c370d7
 		+" "+tingtongRounds+" "+round3(ttt_ms) // for client console.log
 	);
 
-	if (DEV) {		
+	if (DEV) {	 // #E
 			System.out.println("==== T0 correction: "+ _T0corr[0]);
 			System.out.println("==== Avg msg roundtrip time: Server: "+round3(_avgC[0])+"ms, client: "+round3(_avgS[0]));
 			System.out.println("==== Total tingtong time "+round3( ttt_ms)+"ms tingtongRounds="+tingtongRounds);
@@ -168,7 +168,7 @@ LogSocketServer.exctrService.execute( () -> { // >>>>>>>>>>>>>>>>>>
 				} );
 			double beta_1 = 0.5*( Syy[0]-Sxx[0] + Math.sqrt( square(Syy[0]-Sxx[0]) + 4.0*square(Sxy[0]) ) ) /Sxy[0];
 			double beta_0 = _y_ - beta_1*_x_; //instead of T0corr
-			double alpha_1 = Sxy[0]/Sxx[0]; // ordinary least squares ~ beta_1
+			double alpha_1 = Sxy[0]/Sxx[0]; // ordinary (non orthogonal) least squares ~ beta_1
 	
 			System.out.println("==== Q="+ (1.0 + beta_1) + " beta_0="+beta_0+" _x_="+_x_+" alpha_1="+alpha_1);
 	

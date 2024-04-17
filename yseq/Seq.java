@@ -97,7 +97,10 @@ public interface Seq<T> {
 		return c -> consume(t -> c.accept(function.apply(t)));
 	}
 
-
+	default Seq<T> onEach(Consumer<T> consumer) {
+		return c -> consume(consumer.andThen(c));
+	}
+	
 	default <E, R> Seq<R> zip(Iterable<E> iterable, BiFunction<T, E, R> function) {
 		return c -> {
 			Iterator<E> iterator = iterable.iterator();

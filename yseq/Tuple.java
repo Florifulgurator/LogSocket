@@ -30,7 +30,6 @@ public interface Tuple<S, T> {
 		return bc -> consume( (s,t) -> bc.accept(f1.apply(s,t), f2.apply(s,t)) );
 	}
 
-	
 	public static class TupleObject<S, T> {
 		public S t1;
 		public T t2;
@@ -38,25 +37,21 @@ public interface Tuple<S, T> {
 	// ---
 	default TupleObject<S, T> toObject() {
 		TupleObject<S, T> dto = new TupleObject<>();
-		consume( (s,t)->{dto.t1=s; dto.t2=t;} );
+		consume( (s,t) -> {dto.t1=s; dto.t2=t;} );
 		return dto;
 	}
-
-
-//	default boolean equals(Tuple<S,T> tpl) {
-//		boolean ret[] = {false};
-//		TupleObject<S, T> dto = tpl.toObject();
-//		consume( (s,t)-> { ret[0] = s.equals(dto.t1) && t.equals(dto.t2); } );
-//		return ret[0];
-//	}
 	
-
-	default String bakeToString() { // toString() not possible in interface
-		String[] Str = {""};
-		consume( (s,t)->{ Str[0] = "("+s+", "+t+")"; } );
-		return Str[0];
+	default boolean equals(Tuple<S,T> tpl) {
+		boolean ret[] = {false}; // effectively final
+		consume( (s,t) -> tpl.consume( (t1,t2) -> {ret[0] = (s.equals(t1) && t.equals(t2));} ));
+		return ret[0];
 	}
 
+	default String bakeToString() { // toString() not possible in interface
+		String[] str = {""};
+		consume( (s,t) -> {str[0] = "("+s+", "+t+")";} );
+		return str[0];
+	}
 
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -65,7 +60,7 @@ public interface Tuple<S, T> {
 		// 2D linear algebra: Rotate 2-vector 30° counterclockwise
 		public static Tuple<Double,Double> rot30(Tuple<Double,Double> v) {
 			double rd = Math.toRadians(30);
-			return v.map( (x,y)-> Math.cos(rd)*x-Math.sin(rd)*y, (x,y)->  Math.sin(rd)*x+Math.cos(rd)*y );
+			return v.map( (x,y) -> Math.cos(rd)*x-Math.sin(rd)*y, (x,y) -> Math.sin(rd)*x+Math.cos(rd)*y );
 		} 
 
 
@@ -84,12 +79,9 @@ public interface Tuple<S, T> {
 
 			Tuple<Double,Double> xy2 = Tuple.of(1.0, 0.0);
 			System.out.println("xy.equals(xy2) "+xy.equals(xy2));
-			Tuple<String,String> lala = Tuple.of("la","lo");
-			Tuple<String,String> lala2 = Tuple.of("la","lo");
+			Tuple<String,String> lala = Tuple.of("la", new String("lo"));
+			Tuple<String,String> lala2 = Tuple.of(new String("la"), "lo");
 			System.out.println("lala.equals(lala2) "+lala.equals(lala2));
-
-			
-			
 		}
 	}
 }

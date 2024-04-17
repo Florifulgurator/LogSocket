@@ -1,14 +1,14 @@
 /*****************************************************************************
  * client_cmds.js
  * 
- * Action start here with sorting out server commands from Lggr messages in
- * the central *websocket onMessage callback*.
+ * Action starts here with sorting out server commands from Lggr messages in
+ * the websocket onMessage callback - the receiving end of LogSocketServer.java 
  *****************************************************************************/
 console.log("client_cmds.js: Hello World!");
 
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-// function onMessage(evt) The receiving end of LogSocketServer.java >>>>>>>>>>
+// function onMessage(evt)  >>>>>>>>>>
 //---
 // onMessage globals:
 var shortId2clr = new Map();
@@ -27,7 +27,8 @@ function onMessage(evt) {
 
 	const srvrMsg = evt.data;
 	const first = srvrMsg.split(" ",1)[0];
-	const [T, longId, shortId, numMsgs, flag] = first.split("&",5); // leading "*" / "+" at T //flags: #2fa32174
+	const [T, longId, shortId, numMsgs, flag] = first.split("&",5);
+	// leading "*" / "+" sticks at T //flags: #2fa32174
 
 	switch ( srvrMsg.at(0) ) {
 		case "*":
@@ -164,7 +165,7 @@ function onMessage(evt) {
 					return;
 			}
 			countNonLogMsg();
-			msgOutput(srvrMsg, "D", "cmd"); // Add class "cmd" for hiding srvrMsg
+			msgOutput(srvrMsg, "S", "cmd"); // Add class "cmd" for hiding srvrMsg
 			return;
 			
 		case "!":	

@@ -5,7 +5,7 @@ console.log("client_clock.js: Hello World! 9");
 var I_nanoUnit, nanoUnit;
 
 // Return client clock ticks in server clock tick units (1/100ms == 10μs)  #140aef3e
-// T() should correspond to server-side function Clock.T() which is the System Time Normal
+// T() corresponds to server-side function Clock.T() which is the System Time Normal
 function T() { return Math.floor( Q*(performance.now()-T0) *nanoUnit ); }
 
 var T0 = performance.now(); // high resolution timestamp in milliseconds.
@@ -37,7 +37,7 @@ function initClock([nU, srvr_T_ms]) {
 	document.getElementById("CTtxtID").innerHTML = nanoUnitStr;
 	
 	T0 = T0 - Number.parseFloat(srvr_T_ms) - T_ms(); // wrong by a few handfuls of milliseconds
-return;//DEV	
+//return;//DEV	
 	setTimeout(Clock_SyncDaemon.T0correction,  2000); // TODO #66eb4a7b Not yet a daemon
 	setTimeout(Clock_SyncDaemon.T0correction,  4000); 
 	setTimeout(Clock_SyncDaemon.T0correction,  10000); // Just for fun...
@@ -102,7 +102,7 @@ var ting=null, ting1=null, tong=null, tong1=null;
 // F = (ting1-_tong + tong-_ting + tong1-_ting1)/3  == Avg clnt-srvr time diff 
 
 // If R_cs is the message travel time from client to server, and R_sc from server to client
-// and X is ( server Clock.T_ms() - client T_ms() ) assumed to be called simultaneously
+// and X is ( server Clock.T_ms() - client T_ms() ) assumed to be called simultaneously (ask Einstein for problematics)
 // then (E-F)/2 == X + (R_cs-R_sc)/2
 
 
@@ -116,10 +116,11 @@ var Clock_SyncDaemon =  ( () => {
 // Instead of feeding data from server into a plain callback function, 
 // a generator function* is used that waits for data to receive via the yield operator.
 // (So actually it is a receiver, not a generator. I wanted to try that out.)
-// The Java equivalent implementation uses a thread and a higher-functional generator/receiver
-// "Seq" that waits for a CompletableFuture (another functional programming thing I wanted to try).
 // This reverse-perspective style doesn't need much more text than the simple solution,
 // and might be more flexible for ongoing development.
+//
+// The Java equivalent implementation uses a thread and a higher-functional generator/receiver
+// "Seq" that waits for a CompletableFuture (another functional programming thing I wanted to try).
 
 
 var tingtongReceiver = null;

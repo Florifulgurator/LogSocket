@@ -36,7 +36,8 @@ import javax.websocket.server.ServerEndpoint;
 
 
 //TODO Fine-grained synchronized / locks for optimized performance.
-//     Synchronized static methods are synchronized on the class object
+//     Synchronized static methods are synchronized on the class object...
+//     but not everything declared static remains static! cf. #srvr_TEST1
 
 
 @ServerEndpoint("/ws")  // javax.websocket.server
@@ -107,10 +108,11 @@ private static Properties                 props = new Properties();
 //Test stuff >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 	// Most "public" due to old test. // TODO private/public
 	public static boolean debug = false;
-//  TEST1 result: Not a singleton! Due to Tomcat "reflection attack"?
+//  #srvr_TEST1 result: Not a singleton! Due to Tomcat "reflection attack"?
 	public static String  thisClObjID = "LogSocketServer"; // assigned in constructor => NOT STATIC
 //	public static String  sessionClObjID = "1st assignment"; // assigned in @OnOpen => NOT STATIC
 //	public static String  weird = "Hello "; // assigned in @OnMessage => static
+// TODO: Test if @OnMessage is static method #srvr_TEST2
 //	public LogSocketServer() { 
 //		LogSocketServer.thisClObjID = shortClObjID(this);
 //	}
@@ -240,6 +242,7 @@ srvrCommands.put("!HELLO", new SrvrCmd() { synchronized public void exec(Session
 	sendText(sess, "%CLOCK "+Clock.nanoUnit +" "+Clock.T_ms());
 	
 	synchronized(lggrMap) {
+		// Send lggrs to client, sorted by their timestamps
 		// TODO #495e57b8 get loggers (incl. numMsgs) from LogSockets /PING, check with lggrMap
 		lggrMap.keySet().stream().sorted(shortIdComprtr).forEach( shortId -> {
 			LggrRcrd rcrd = lggrMap.get(shortId);
@@ -286,6 +289,7 @@ srvrCommands.put("!GREETS", new SrvrCmd() { synchronized public void exec(Sessio
 	}
 				
 	lgScktSssn2Nr.put(LgScktSssn, ++lastLogSocketNr);
+	//TODO send filter1
 	sendText(LgScktSssn, "/START "+lastLogSocketNr);
 }
 } );
@@ -625,7 +629,7 @@ try {
 
 
 synchronized private static boolean sendTxtToListener(Session sessSendTo, String msg) {
-// #3ffba3b DOCU *** The only listener we have right now is the LogSocket Client ***
+// #3ffba3b DOCU *** The only listeners we have right now are the LogSocket Clients ***
 // Called by sendMsgToAllListeners(...) and TODO initial handshake
 // No messing with listeners List here!
 	boolean sent = false;
@@ -655,7 +659,7 @@ synchronized private static boolean sendTxtToListener(Session sessSendTo, String
 }
 
 synchronized private static void sendMsgToAllListeners(String msg, boolean noSrvrBffrng) {
-// #3ffba3b DOCU *** The only listener we have right now is the LogSocket Client ***
+// #3ffba3b DOCU *** The only listeners we have right now are the LogSocket Clients ***
 	if(debug) debugMsg(".... "+thisClObjID+": sendMsgToAllListeners  msg="+msg+" hasListeners="+hasListeners);
 
 	if (!hasListeners) { 
@@ -675,7 +679,7 @@ synchronized private static void sendMsgToAllListeners(String msg, boolean noSrv
 		return;
 	}
 
-	Set<Session> errSessions = new HashSet<Session>();
+	Set<Session> errSessions = new HashSet<Session>(); //TODO not needed
 	lstnrSssns.forEach( ssn -> {if (!sendTxtToListener(ssn, msg) ) errSessions.add(ssn);} );
 	errSessions.forEach(s->lstnrSssns.remove(s)); //FIXME 11811f4b this can happen before onClose
 

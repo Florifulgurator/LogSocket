@@ -11,6 +11,8 @@ public static String shortClObjID(Object o) { return o==null?"null":Stream.of( d
 
 public static double square(double x) { return x*x; }
 
+public static double round6(double x) {return Math.round(1000000.0*x)/1000000.0;}
+public static double round5(double x) {return Math.round(100000.0*x)/100000.0;}
 public static double round4(double x) {return Math.round(10000.0*x)/10000.0;}
 public static double round3(double x) {return Math.round(1000.0*x)/1000.0;}
 public static double round2(double x) {return Math.round(100.0*x)/100.0;}
