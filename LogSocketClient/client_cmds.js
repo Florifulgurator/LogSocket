@@ -215,3 +215,60 @@ function countNonLogMsg() {
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< function onMessage(evt)
 
 
+function doSend(mymessage) {
+	if (websocket.readyState == 1) {
+		websocket.send(mymessage);
+		return true;
+	} else {
+		alertRed("Socket " + wsStateNames[websocket.readyState] + ".");
+		msgOutput("Socket " + wsStateNames[websocket.readyState] + ". Message NOT sent: " + mymessage, "F");
+		return false;
+	}
+}
+
+
+//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+var websocket;
+const wsStateNames = ["CONNECTING", "OPEN", "CLOSING", "CLOSED"];
+var connectionTried = 0;
+//---
+function onOpen(evt) {
+	connectionTried = 0;
+	msgOutput(`WebSocket OPEN: ${(evt.data?evt.data+" ":"")}wsUri=${wsUri}`, "D");
+	setTimeout(	()=>{ websocket.send(`!HELLO`);}, 50);
+}
+//---
+function onError(evt) {
+	if (connectionTried) {
+		alertRed(`WebSocketServer: No reply.<br>Trying again (${++connectionTried})`);
+		if (connectionTried>2) return; //Don't bother log anymore
+	}
+	msgOutput(`WebSocket ERROR: evt.data=${evt.data} wsUri=${wsUri}`, "E");
+}
+//---
+function onClose(evt) {
+	if (connectionTried || evt.code == 1006 ) {
+		if (connectionTried>50) {
+			connectionTried=0;
+			alertRed("WebSocketServer: No reply.<br>Giving up.<br>Try reloading page later.");
+		} else {
+			setTimeout(	connect, 1000);
+			return;
+		}
+	}
+	msgOutput(`WebSocket CLOSE: code=${evt.code}, reason=${evt.reason}, data=${evt.data}`, "D");
+}
+//---
+function connect() {
+	alertBlue("Connecting...");
+	//alertBlue("... connected.") sent by setSessID(...) //sessionID!=null indicates a clean connection
+
+	try {
+		websocket = new WebSocket(wsUri);
+	} catch (ignore) {} //onError does job
+	if (!connectionTried) connectionTried = 1;
+	websocket.onopen = onOpen;
+	websocket.onclose = onClose;
+	websocket.onerror = onError;
+	websocket.onmessage = onMessage;
+}

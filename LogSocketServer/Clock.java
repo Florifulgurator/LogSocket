@@ -236,9 +236,11 @@ LogSocketServer.exctrService.execute( () -> { // >>>>>>>>>>>>>>>>>>
 						stopped[0]=true;
 						break;
 					} else {
-						LogSocketServer.sendText(sess, "!ERROR 20 LogSocketServer.Clock: tingtongReceiver exception "+e.getClass().getName()+" message: "+ e.getMessage());
+						LogSocketServer.sendText(sess, "!ERROR 20 LogSocketServer.Clock: tingtongReceiver exception: "+e.getClass().getName()+" message: "+ e.getMessage());
 						System.err.println("!!!. tingtongReceiver exception "+e.getClass().getName()+" message: "+ e.getMessage());
 						break;
+						// ??! #2ebbea73-->
+						// tingtongReceiver exception java.lang.NullPointerException message: Cannot invoke "java.lang.Double.doubleValue()" because "florifulgurator.logsocket.server.Clock.tong" is null
 					}
 				}
 			}

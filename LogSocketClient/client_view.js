@@ -402,17 +402,6 @@ function writeSysTimers(s) { // TODO #1538e9e5 Let server send only new timer re
 }
 
 
-function doSend(mymessage) {
-	if (websocket.readyState == 1) {
-		websocket.send(mymessage);
-		return true;
-	} else {
-		msgOutput("Socket " + wsStateNames[websocket.readyState] + ". Message NOT sent: " + mymessage, "F");
-		return false;
-	}
-}
-
-
 function setSessID(s) {
 	s = s.split(" ",1)[0]; // Rest is server WsSession object Id
 	if (sessionID != null && sessionID != s) {

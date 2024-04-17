@@ -60,12 +60,12 @@
 #titleID {
 	background-color: var(--bgDisco);
 	font-family: ui-serif;
-	font-size: larger;
+	font-size:x-large;
 	text-align: center;
-	padding: 0.1rem;
-	border-radius: 0.2rem;
+	padding: 0.2rem;
+	border-radius: 0.3rem;
 	box-shadow: var(--shadow);
-	outline: ridge 3px gold;
+	outline: ridge 4px gold;
 	color: white;
 	cursor: help;
 	position:relative;

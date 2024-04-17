@@ -109,10 +109,12 @@ window.addEventListener("load", init, false);
 
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>
 //___ Global globals
-var sessionID;  // From corresponding Java WsSession object ID. Currently just a client ID and for testing. 
-var firstT = 0; // Server clock Tick at first LogSocket connection. 
+var sessionID = null;    // From corresponding Java WsSession object ID.
+                         // sessionID!=null indicates a clean connection. // Else not critical: used as client ID and for testing. 
+var firstT = 0;          // Server clock Tick at first LogSocket connection. 
 var filter1 = new Map(); // Insertion-ordered key set is the set of global logger filter rules. Identical copies of the set kept in Server, LogSockets, other Clients.
                          // LinkedHashSet in Java. Here an HTML element is attached to each rule. //DEV #6cb5e491
+var srvrMsg;             // Current message from LogSocketServer
 
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>
 //___ Parameters
@@ -139,6 +141,7 @@ var synchDaemon = false; // TODO #66eb4a7b
 
 // TODO #60ba89a6 save state in cookie
 
+
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>
 //___ Font constants in pixel
 // Monospaced font width:, line height, em in pixel:  // MFWP==6.5958 (browser zoom 75%) 6.5969 (175%)
@@ -150,28 +153,6 @@ document.getElementById("fontTestID").style.display = "none";
 const testDiv = document.getElementById("testDivID"); testDiv.style.height = '10em';
 const EMP = testDiv.offsetHeight/10; // ==12 (any zoom)
 testDiv.style.display = "none";
-
-
-
-
-//>>>>>>>>>>>>>>>>>>>>>>>>>>>
-var websocket;
-const wsStateNames = ["CONNECTING", "OPEN", "CLOSING", "CLOSED"];
-//Websocket callbacks:
-//function onMessage() defined in client_cmds.js -- the most important function of all :-)
-function onOpen(evt) {
-	alertBlue("Connecting...");
-	msgOutput(`WebSocket OPEN: ${(evt.data?evt.data+" ":"")}wsUri=${wsUri}`, "D");
-	setTimeout(	()=>{ websocket.send(`!HELLO ${sessionID}`);}, 50);
-}
-function onError(evt) {	msgOutput(`WebSocket ERROR: evt.data=${evt.data} wsUri=${wsUri}`, "E"); console.log("xxxxxx",evt);}
-function onClose(evt) {
-	msgOutput(`WebSocket CLOSE: code=${evt.code}, reason=${evt.reason}, data=${evt.data}`, "D");
-	alertRed("Disconnected!");
-}
-
-//>>>>>>>>>>>>>>>>>>>>>>>>>>>
-var srvrMsg; // Current message from LogSocketServer
 
 
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -274,11 +255,7 @@ function init() {
 	//---
 
 	// Open websocket >>>>>>>>>>>>>>>>>
-	websocket = new WebSocket(wsUri); //TODO catch connection error
-	websocket.onopen = onOpen;
-	websocket.onmessage = onMessage;
-	websocket.onerror = onError;
-	websocket.onclose = onClose;
+	connect();
 	// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 	
 	clientMsg("... init done.");
