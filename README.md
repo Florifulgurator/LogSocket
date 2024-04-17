@@ -1,11 +1,31 @@
-# LogSocket
-~ My cross-platform diagnostics logging tool ~
+# LogSocket: A cross-platform diagnostics logging tool in color
 
-Demonstrable version coming soon...
+Demonstrable version coming soon... Meanwhile you might at least have a glimpse at my coding skills.
 
-The whole Thing (if it is one) started as a wild programming exercise in late September 2023. I wanted to get fluent again after some years of hiatus and try out everything, from CSS to JavaScript to Java - except databases. The exercise consists of a hybrid of the chat server pattern and the logger pattern, plus, a helpful user interface for big monospaced plain text in technicolor.
+The whole Thing (if it is one) started as a wild programming exercise in late September 2023. I wanted to get fluent again after some years of hiatus and try out the full stack, from color space, CSS, HTML to JavaScript and Java, some functional vs. classical OO programming, JavaScript promises vs. Java futures, weak references and garbage collection, etc. - except for SQL (which is meanwhile peeking in through the back door)...
 
-A nice experimental result is the Erlang distribution in situ, which was first found for early telephone systems and also looks valid in my 3-websocket system: This sample uses a plain java.net.http.WebSocket logger, a Tomcat javax.websocket server, and a JavaScript websocket client in a Chrome browser window in an elderly laptop. (A javax.websocket logger at a 2nd Tomcat is half as fast, with a similar looking distribution. TODO: Try TooTallNate's org.java_websocket, perhaps minimize for logger.)
+The exercise consists of a hybrid of the chat server pattern and the logger pattern, plus, a helpful web browser UI for big monospaced plain text in technicolor. All in bare bones Java/JavaScript (not even jQuery) for good reason. The loggers can be implemented in any language that supports WebSockets (and ideally weak references). Here is an outdated screenshot with colors picked by eyeballing:[^1]
+
+[^1]: I spent considerable time optimizing the colors by hand. Then I wrote a color optimization tool (crude "Monte-Carlo" method using the redmean metric) which itself required some optimization. It turned out my eyes are almost good enough.  (TODO: Better formula for [color-space metric](https://en.wikipedia.org/wiki/Color_difference).)
+
+![Color test](./Screenshots/LogSocketClient_ColorTest.PNG)
+
+The performance of JavaScript/DOM in Chrome is quite amazing: In the first straight-forward implementation it took a second or two to (un)wrap 10000 long lines of double Lorem Ipsum, or to color 30000 search results on an elderly laptop. However, the memory consumption then approaches 1GB, which is less impressive. For me, a second is far too long (I'm used to late 20th century Unix X11 desktop performance), so I added some optimization for quick click reactivity.[^2]
+
+[^2]: The new CSS `content-visibility` property spoils my design (note line overshoot in screenshot) and Chrome's `contentvisibilityautostatechange` event is buggy - but [IntersectionObserver](https://developer.mozilla.org/en-US/docs/Web/API/Intersection_Observer_API) speeds up rendering performance just as well, if not better, when combined with my tiny async functional framework. Javascript Web APIs like this is why I enjoy JavaScript so much more than 10 years ago. Down with extra libs and frameworks!
+
+## Why yet another logger?
+
+1) As already indicated, a major point is the user interface that helps seeing the trees in the forest by coloring them.
+2) Log messages usually come in single long lines. Formatted text with line breaks (like key-value lists, Java stack traces, JSON objects, etc) goes into an extra popup window (e.g. the http headers behind …▼ in the screenshot).
+3) My loggers are objects with a finalization method upon garbage collection. Beyond logging, their silent existence can be used to trace the creation and destruction of objects. (Screenshot coming soon.)
+4) A flexible labelling system (beyond RFC 5424 log levels) allows for fine-grained and quick filtering of (un)wanted loggers at run time.
+5) Additional logger functionality can be programmed when needed, e.g. single-message loggers, timers, observers, ... Ultimately the loggers might even correspond in a JavaScript sandbox - extending my tool to distributed systems testing. (The infamous [Log4Shell](https://en.wikipedia.org/wiki/Log4Shell) vulnerability comes to mind: Here it would be a feature, not a bug.)
+6) 10µs precision distributed clock synchronization.
+7) Support for timing and benchmarking statistics, like in the following experiment:
+
+## Erlang!
+A nice experimental result is the [Erlang distribution](https://en.wikipedia.org/wiki/Erlang_distribution) in situ, which was first found for early telephone systems and also looks valid in my 3-websocket system: This sample uses a plain java.net.http.WebSocket logger, a Tomcat javax.websocket server, and a JavaScript websocket client in a Chrome browser window in an elderly laptop. (A javax.websocket logger at a 2nd Tomcat is half as fast, with a similar looking distribution. TODO: Try TooTallNate's org.java_websocket, perhaps minimize for logger.)
 ```
 N=3500 Min=62.9 Max=8267.7 Median=116 Mean=173.4
 --------------------------------------------------
