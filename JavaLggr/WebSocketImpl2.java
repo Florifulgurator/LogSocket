@@ -7,13 +7,13 @@ import java.net.http.WebSocket.Listener;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
-//NOTES below
 //Tomcat shuts down with memory leak WARNING. "... thread named [HttpClient-1-SelectorManager] ..."
 public class WebSocketImpl2 implements IWebSocket {
 	WebSocket websocket;
 
 	@Override
-	public boolean connect(URI uri) {
+	public void connect(URI uri) {
+//TODO Thread
 		CompletableFuture<WebSocket> cfws = HttpClient.newHttpClient().newWebSocketBuilder()
 			.buildAsync(uri, new Ws());
 	
@@ -25,10 +25,9 @@ public class WebSocketImpl2 implements IWebSocket {
 			// 4 get() method allows to specify the maximum wait time
 		} catch (Exception e) {
 			System.err.println("!!!- LogSocket_ERROR_...X WebSocketImpl2 (TODO) "+e.getMessage());
-			return false;
+//TODO	
 		}
-	
-		return true;
+//TODO
 	}
 
 	@Override
@@ -64,25 +63,23 @@ public class WebSocketImpl2 implements IWebSocket {
 			return null;
 		}
 	}
+
+//TODO
+	@Override
+	public boolean isConnecting() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public boolean isConnected() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public void close() {
+		// TODO Auto-generated method stub
+		
+	}
 }
-/*
-Dec 18, 2023 2:47:11 AM org.apache.catalina.core.StandardServer await
-INFO: A valid shutdown command was received via the shutdown port. Stopping the Server instance.
-Dec 18, 2023 2:47:11 AM org.apache.coyote.AbstractProtocol pause
-INFO: Pausing ProtocolHandler ["http-nio-8081"]
-Dec 18, 2023 2:47:11 AM org.apache.catalina.core.StandardService stopInternal
-INFO: Stopping service [Catalina]
-msg dropped: #DESTROY this=TESTservlet@2703dc6b also calls super.destroy() super=TESTservlet@2703dc6b (!!!)
-msg dropped: #close
-Dec 18, 2023 2:47:11 AM org.apache.catalina.loader.WebappClassLoaderBase clearReferencesThreads
-WARNING: The web application [logsocketTEST] appears to have started a thread named [HttpClient-1-SelectorManager] but has failed to stop it. This is very likely to create a memory leak. Stack trace of thread:
- java.base@17.0.8/sun.nio.ch.WEPoll.wait(Native Method)
- java.base@17.0.8/sun.nio.ch.WEPollSelectorImpl.doSelect(WEPollSelectorImpl.java:111)
- java.base@17.0.8/sun.nio.ch.SelectorImpl.lockAndDoSelect(SelectorImpl.java:129)
- java.base@17.0.8/sun.nio.ch.SelectorImpl.select(SelectorImpl.java:141)
- platform/java.net.http@17.0.8/jdk.internal.net.http.HttpClientImpl$SelectorManager.run(HttpClientImpl.java:889)
-Dec 18, 2023 2:47:11 AM org.apache.coyote.AbstractProtocol stop
-INFO: Stopping ProtocolHandler ["http-nio-8081"]
-Dec 18, 2023 2:47:11 AM org.apache.coyote.AbstractProtocol destroy
-INFO: Destroying ProtocolHandler ["http-nio-8081"]
-*/

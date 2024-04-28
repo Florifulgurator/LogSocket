@@ -14,30 +14,32 @@
  * Still lots of TODOs, but few FIXMEs.
  * 
  *
- *** Files {lines} ***
- *   client_init.js {350}
+ *** Files {} ***
+ *   client_init.js {}
  *   client_view.js
- *   client_cmds.js {200}
+ *   client_cmds.js {}
  *   client_gui_lib.js
- *   client_gui.js  {750}
+ *   client_gui.js  {}
+ *   client_filter.js
  *   client_selection.js
- *   client_clock.js {250} (DEV/experiment: System clocks synchronization. No use case yet.)
- *   client_lib.js   {250} (World's smallest lib :-) )
- *   client_TEST.js        (optional)
- *   index.html      {350} (standard http headers)
- *   client.css      {550}
+ *   client_clock.js {} (DEV/experiment: System clocks synchronization. No use case yet.)
+ *   client_lib.js   {} (World's smallest lib :-) )
+ *   client_TEST.js     (optional)
+ *   index.html      {} (standard http headers)
+ *   client.css      {}
  *   index.jsp             (adds cross-origin isolation headers for improved performance.now() resolution. Else static html.)
  *                         TODO #37076d2e Chrome command flag?
  * 
  *** Task/code tags ***
  *   TODO, FIXME, HARDWIRED, DOCU, COPYPASTE, TEST, NOTE, CAVEAT,
- *   CLEANUP, WHY, DEL, DEV, UNFINISHED, DIAGN, #<random string>
- *   E.g. #UTF to mark special UTF-8 characters (test rendering required).
+ *   CLEANUP, WHY, DEL, DEV, UNFINISHED, DIAGN,
+ *   #<string> e.g. #UTF to mark special UTF-8 characters (test rendering required).
+ *   Single-letter #L hashtags refer to things in the visible vicinity, e.g. in complicated algorithms.
  * 
  * BUG is for inside error message strings, just in case one really shows up.
  * Use FIXME for actually known bugs.
  * DEL means stuff to be deleted ASAP.
- * DEV is current development/work, while TODO is postponed development.
+ * DEV is current development/work, while TODO is postponed finishing-up.
  * Test stuff has an all-caps TEST somewhere.
  * 
  * //--- Separator between things that belong together
@@ -47,18 +49,15 @@
  *   They are for documentation, to see what code is related and to quickly
  *   make sense of distributed constructs. Strings copied from Java object IDs.
  * 
- *   Single-letter #L hashtags refer to things in the visible vicinity,
- *   e.g. in complicated algorithms.
- *
- * #hashtags are my invention, ca. 1999, not patented :-)
+ * Hex #hashtags are my invention, ca. 1999, not patented :-)
  * TODO Write little app to auto generate random hashtags.
- *  Math.round(Math.random()*1679616).toString(36).padStart(4,"0") ...
+ * (Why hex: Only 2.3% look decimal.)
  *
  *****************************************************************************/
 
 
 /*** Recommended work for first code study ***
- * TODO #1b29f250 Map of cmds
+ * TODO #7e23cb75 JavaScript microTimer for performance comparison with Java
  * TODO #6b2b50f8 Navigate to next infoLine
  * TODO #6103a6ee Unify _millis() and _linewrap()
  * TODO #20eaba80 If performance benefit: Put output chunk element in queue, append to DOM when scrolled down or needed by search.
@@ -112,8 +111,6 @@ window.addEventListener("load", init, false);
 var sessionID = null;    // From corresponding Java WsSession object ID.
                          // sessionID!=null indicates a clean connection. // Else not critical: used as client ID and for testing. 
 var firstT = 0;          // Server clock Tick at first LogSocket connection. 
-var filter1 = new Map(); // Insertion-ordered key set is the set of global logger filter rules. Identical copies of the set kept in Server, LogSockets, other Clients.
-                         // LinkedHashSet in Java. Here an HTML element is attached to each rule. //DEV #6cb5e491
 var srvrMsg;             // Current message from LogSocketServer
 
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -132,11 +129,11 @@ var colorBySubRealm = true; // still HARDWIRED
 //___ UI State
 var caseSensitive = false;
 var burstGrpThr = 999;   // Bracket log msgs <999CT (clock ticks) apart each.
-var logGC = true;        // TODO #43d4d9ad make GC messages hideable via CSS cmd class
+var cmdGC = true;        // Treat GC messages as internal via CSS cmd class
 var synchDaemon = false; // TODO #66eb4a7b
 // No vars needed yet:
 // document.getElementById("showCmdsID").checked = false; // #65f24547
-// document.getElementById("millisID").checked = false; // #4ca41226 
+// document.getElementById("millisID").checked = false;   // #4ca41226 
 // document.getElementById("linewrapID").checked = false; // #4ca41226  necessary at init (WHY?)
 
 // TODO #60ba89a6 save state in cookie
@@ -202,13 +199,6 @@ function init() {
 	//---
 	cssRule_posRT.style.top = Math.floor(document.getElementById("menuButtonID").getBoundingClientRect().bottom +5)+"px"; // #3aedf5bc COPYPASTE #72736288
 	//---
-	if (navigator.cookieEnabled ) {
-		msgOutput("Cookie: \""+document.cookie+"\"", "D")
-		//document.cookie = document.cookie+"; max-age=0";
-	} else {
-		msgOutput("Cookies disabled.", "D");
-	}
-	//---
 	msgOutput("Garbage collection function window.gc() "+ (window.gc?"exists.":"not available."), "D"); //#note3
 	//---
 	let diff, start;
@@ -216,8 +206,7 @@ function init() {
 		start = performance.now();
 		while ((diff = performance.now() - start) === 0);
 	}
-	diff = Math.round(diff*1000.0)/1000.0;
-	msgOutput("window.crossOriginIsolated=="+window.crossOriginIsolated+", performance.now() resolution=="+diff+"ms", "D"); //#note2
+	msgOutput("window.crossOriginIsolated=="+window.crossOriginIsolated+", performance.now() resolution=="+round3(diff)+"ms", "D"); //#note2
 	
 
 	//---
@@ -242,10 +231,11 @@ function init() {
 	menuDivEl.addEventListener('contextmenu', e => { toggleDrpdwnDspl(menuDivEl); });
 	clrsDivEl.addEventListener('contextmenu', e => { toggleDrpdwnDspl(clrsDivEl); });
 	loggersEl.addEventListener('contextmenu', e => { if (!e.target.classList.contains('lg') && loggersEl.classList.contains("posLT")) toggleDrpdwnDspl(loggersEl); });
+	upprCentrDIV.addEventListener('mouseenter', clientMsg_fadeout);
+	upprCentrDIV.addEventListener('contextmenu', ()=>{upprCentrDIV.style.display="none";});
 
 	document.getElementById("caseID").checked = caseSensitive;
-	document.getElementById("logGCID").checked = logGC;
-	// document.getElementById("synchDmnID").checked = synchDaemon; // TODO #66eb4a7b
+	document.getElementById("cmdGCID").checked = cmdGC;
 
 	document.getElementById("cleanLggrListBtn").style.display = "none";
 	updateNumMsgs();
@@ -277,7 +267,7 @@ function init_colors_css() {
 	}
 
 	const cssr = stylSheet.cssRules;
-	var bgColrsNum, c, cssStr = "";  // #655e8593
+	var bgColrsNum, c, cssStr = "";  // #H
 	
 	for (let i=0, n=cssr.length; i<n; i++ ) {
 		let t=cssr[i].selectorText;
@@ -287,7 +277,7 @@ function init_colors_css() {
 		else if ( c = t.match(/^\.bg([A-Z])2$/)) {
 			// /////////////////////////////////////////
 			// Meanwhile job for the color optimizer
-			// #655e8593 Helper for manual fine-tuning of light stripes via transparency in css definition:
+			// #H Helper for manual fine-tuning of light stripes via transparency in css definition:
 			// Generate light stripe color without transparency to manually paste into css file
 			if ( false && "SLBEDF".indexOf(c[1]) == -1 ) {
 				var bgC = cssr[i].style.backgroundColor
@@ -301,11 +291,10 @@ function init_colors_css() {
 		if (t==".cmd") cssRule_cmd = cssr[i];
 		if (t==".posLT") cssRule_posLT = cssr[i];
 		if (t==".posRT") cssRule_posRT = cssr[i];
-		//Relic of failed CSS experiment  #190d2905 if (t==".chnk") cssr[i].style.containIntrinsicHeight = "auto "+Math.round(LHP*100)+"px";
 	}
 	if ( hlColrsNum==0 || bgColrsNum==0 || !cssRule_cmd) alert("Essential CSS rules missing. Wrong CSS file? There will be ERRORS...");
 	
-	if (cssStr) console.log(cssStr); // #655e8593
+	if (cssStr) console.log(cssStr); // #H
 
 	const spn = document.createElement("span");
 	var parent = document.getElementById("hlColrsID");

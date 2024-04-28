@@ -1,7 +1,9 @@
 package florifulgurator.logsocket.javalggr;
 
+import java.lang.ref.Cleaner;
 import java.util.Arrays;
 import java.util.Hashtable;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 public class Lggr {
@@ -15,14 +17,20 @@ public class Lggr {
 	public int n2;                // Realm+Label duplicate number, determined by LogSocket
 	//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-	public int nr;     	   	       // Counted by LogSocket. Incl. LogSocket.Nr gives short no-information ID for Listener GUI.
+	public int nr;     	   	       // Counted by LogSocket. Incl. LogSocket.Nr gives unique no-information shortId for Listener GUI.
 	                               // nr==0 : realm+label listed as stopped/filtered before creation. => no longId, shortId, no finalization registry //DEV #6cb5e491
 	public boolean on = false;     // Logger messages switched on/off: A) when filtered "M" or when B) max log msg count reached
-	public boolean ignore = true;  // When filtered "E" or under construction: No finalize(), ...? //DEV #6cb5e491
+	public boolean ignore = true;  // When filtered "E" or under construction: "Silent" cleanup #5f5d8a51
 	public int numMsgs = 0;        // Counted by LogSocket
-	public String longId;
-	public String shortId;         // "/"+LogSocket.Nr+"_"+nr null until handshake completed // FIXME #12fe3d9c
+	public String longId;		   // Human readable informational unique Id, for syntax see LogSocket#makeLggrIdStrings
+	public String shortId = null;  // "/"+LogSocket.Nr+"_"+nr
 	public String comment;
+	
+	Cleaner.Cleanable cleanable = null;  // ==null when filtered "E" 
+	long labelsCode = 0L; // !=null when registered for filter and cleanup of weak references
+	// Filter and Cleaner use a #longIdX without LogSocket.Nr (not necessarily known at creation of Filter/Cleaner entry).
+	LogSocket.LggrRefRcrd lggrRefRcrd = null; // has copy of ignore to indicate silent cleanup #5f5d8a51
+	
 	
 	public Hashtable<String,Integer> repeatCounters; // log max. n messages as counted by counter logCntrID
 	
@@ -33,11 +41,11 @@ public class Lggr {
 	public long microTimerLast;
 		
 	
-	protected Lggr(String rlm, String lbl, Integer i2, String commnt, Integer n) {
-		realm = rlm; label = lbl; n2 = i2; comment = commnt; nr = n;
+	protected Lggr(String rlm, String lbl, Integer i2, long lblsCode, String commnt, Integer n) {
+		realm = rlm; label = lbl; n2 = i2; comment = commnt; nr = n; labelsCode = lblsCode;
 		
 		if (nr!=0) {  //DEV #6cb5e491
-			on=true; ignore=false; //TODO JS
+			on=true; //TODO JS
 			repeatCounters = new Hashtable<String,Integer> ();
 			LogSocket.makeLggrIdStrings(this);
 		}
@@ -45,18 +53,11 @@ public class Lggr {
 
 	public String toString() { return longId; } // Should not be used
 	
-	protected void finalize() {
-		if (ignore || nr==0 ) return;  //TODO: Javascript
-		String s = shortId + " " + longId;
-		LogSocket.sendCmd(this, "/GC Finalizing Logger " + s);
-		LogSocket.sendCmd(this, "!GC_LGGR " + s);
-	}
-
-	protected void stop () { // TODO Javascript
-		on = false;
-		if ( nr== 0) return;
-		LogSocket.sendCmd(this, "!STOPPED "+shortId);
-	}
+//	protected void stop () { // TODO Javascript
+//		on = false;
+//		if ( nr== 0) return;
+//		LogSocket.sendCmd(this, "!STOPPED "+shortId);
+//	}
 	
 	
 	// Logger services: >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -75,29 +76,35 @@ public class Lggr {
 
 	public boolean logC (Integer n, String logCntrID, String msg) {
 		// Log max. n messages as counted by counter logCntrID
-		// When max, stop logger (incl. duplicates TODO #492fd0a4)
 		if (!on) return false;
 		Integer count = repeatCounters.get(logCntrID);
-		repeatCounters.put(logCntrID, (count!=null ? ++count : (count=1)));
-		boolean rtrn = LogSocket.log(this, "["+count+"/"+n+"] "+msg);
-		if (count >= n) {
-			on=false; //LogSocket.stopLggr(realm+label+".*"); //DEV #23e526a3 //TODO #492fd0a4 stop individual 
+		if (count==null) count=0;
+		if (count < n) {
+			repeatCounters.put(logCntrID, ++count);
+			return LogSocket.log(this, "["+count+"/"+n+"] "+msg);
 		}
-		return rtrn;
+		return false;
 	}
 
 	public boolean logCM (Integer n, String logCntrID, String msg) {
 		//TODO: Javascript
 		if (!on) return false;
 		Integer count = repeatCounters.get(logCntrID);
-		repeatCounters.put(logCntrID, (count!=null ? ++count : (count=1)));
-		boolean rtrn = LogSocket.logM(this, "["+count+"/"+n+"] "+msg);
-		if (count >= n) on=false; //LogSocket.stopLggr(realm+label+".*"); //DEV #23e526a3 //TODO #492fd0a4 stop individual
-		return rtrn;
+		if (count==null) count=0;
+		if (count < n) {
+			repeatCounters.put(logCntrID, ++count);
+			return LogSocket.logM(this, "["+count+"/"+n+"] "+msg);
+		}
+		return false;
 	}
 
-	public boolean logOnce (String msg) {
+	public boolean logOnce (String msg) { // Unlike logC/logCM turns off complete logger.
 		if (on) { on=false;	return LogSocket.log(this, "[1/1] "+msg); } else return false;
+	}
+
+	public CompletableFuture<String> logCFtr (String msg) {
+		if (!on) return CompletableFuture.completedFuture("");
+		return LogSocket.logCFtr(this, msg);
 	}
 
 	// Global named timers managed by LogSocketServer
@@ -108,7 +115,7 @@ public class Lggr {
 			if (on) return LogSocket.timerStartStop(this, timerName, false); else return false;
 	}
 	
-	//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	// DOCU #95f0f06 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 	// Local unnamed timer for many time measurements between calls to microTimerTick(), after a
 	// a number of Warm-up ticks. Initialized by microTimerClear(int maxTicks, int warmupTicks).
 	// At the end the results get sent to server in one swoop by microTimerReport(String reportName).

@@ -3,8 +3,12 @@ import java.io.IOException;
 import java.util.Scanner;
 import java.util.Spliterator;
 import java.util.Spliterators;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -153,31 +157,45 @@ public class TESTservlet extends HttpServlet {
             	String text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
             	              + " -- "
             	              + "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.";
-            	l2.microTimerClear(i-125, 125);//TODO JavaScript microTimer for comparability
+            	l2.microTimerClear(i-125, 125); //TODO #7e23cb75 JavaScript microTimer for performance comparison
             	l2.timerStart("JavaLoop");
         			while(--i >= 0) { l2.log(text); l2.microTimerTick(); }
             	l2.timerStop("JavaLoop");
             	l2.microTimerReport("JavaLoopMicro"); l2.microTimerLogReport("JavaLoopMicro");
-            	// Results:
+            	// Results see NOTES.txt
 	            	
      		} else if ( cmd[1].equals("thread") ) {
-     			l1.log("AAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+     			l1.log("Starting thread...");
+     			// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
      			exctrService.execute( () -> {
-     				Lggr l3 = LogSocket.newLggr("Srvlt", "#THREADPOOL", "TESTservlet running thread"+Thread.currentThread().getName()+" "+LogSocket.shortClObjID(request));
+     				Lggr l3 = LogSocket.newLggr("Srvlt", "#THREADPOOL", "TESTservlet running thread "+Thread.currentThread().getName()+" "+LogSocket.shortClObjID(request));
      				l3.log("this="+this.toString()+" Thread.currentThread().getName()="+Thread.currentThread().getName());
+					String cftResult = "";
+
+					do {
+						cftResult = ""; // else infinite loop when exception!
+						CompletableFuture<String> cft = l1.logCFtr("CompletableFuture.get(<ButtonClick>) timeout 1min: Continue Thread?");
+						//Should be l3, but test ExecutionException on 2nd call
+						try {
+							cftResult = cft.get(1, TimeUnit.MINUTES);
+						} catch (InterruptedException e) {
+							l3.logM( "InterruptedException: "+e.getMessage()+" Stack trace:\n"+LogSocket.stackTraceToString(e) );
+						} catch (ExecutionException e) {
+							l3.logM("ExecutionException: "+e.getMessage()+" Stack trace:\n"+LogSocket.stackTraceToString(e) );
+						} catch (TimeoutException e) {
+							l3.logM("TimeoutException." );
+						}
+						if(cftResult.equals("OK")) l3.log("CONTINUE thread....");
+					} while (cftResult.equals("OK"));
+					l3.log("Thread END");
      			});
+     			// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
      		} else {
      			l1.log("CCCCCCCCCCCCCCCCCCCCCCCCCC");
      		}
         	
         }
-//        try {
-//        	l1.log("#POST doPost(...) But first 10s of SLEEP.");
-//			//Thread.currentThread();
-//			Thread.sleep(10000);
-//		} catch (InterruptedException e) {
-//			l1.logErr("#POST doPost(...) Sleep interrupted! #EXCEPTION:  \""+e.getMessage()+"\");");
-//		}
+
 	}
 
 	/**

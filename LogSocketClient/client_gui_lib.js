@@ -17,7 +17,7 @@ function getPrototypeEl(name) {
 
 // There can be only one open context menu (i.e. clicked element dependent menu).
 // Data for/about open context menus: 
-var cntxtMenuData={};
+var cntxtMenuData={ targetEl: null }; // other properties added as needed
 const contextMenuElList = [cntxtMenu1El, cntxtMenu3El];
 //---
 function hideContextMenus() {

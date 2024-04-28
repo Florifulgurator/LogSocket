@@ -1,6 +1,6 @@
 /* There are dependencies with JavaScript, e.g. #3aedf5bc */
 
-/* Letter combination "hl" is reserved for dangerous (but effective) things like el.className.indexOf("hl") // #41f603b5 
+/* Letter combination "hl" is reserved for dangerous (but effective) things like el.className.indexOf("hl") // CAVEAT #41f603b5 
    Also later perhaps "bg" */
 
  
@@ -18,10 +18,10 @@
 	--bttnIndent: 1.7rem; /* em varies! */
 	--bttnTop: 0.7rem;
 
-	--fltrSTP:   rgb(185, 0, 0);     /* Logger stopped: filter "E" */ /* DOCU #2540b06f */
+	--fltrIGN:   rgb(185, 0, 0);     /* Logger existence ignored: filter "E" */ /* DOCU #2540b06f */
 	--fltrSIL:   rgb(0, 0, 185);     /* Logger silenced: filter "M" */
 	--fltrGC:    rgb(187, 187, 187); /* Logger garbage collected, no filter */
-	--fltrSTPGC: rgb(223, 151, 151); /* Logger garbage collected, filter "E" */
+	--fltrIGNGC: rgb(223, 151, 151); /* Logger garbage collected, filter "E" */
 	--fltrSILGC: rgb(151, 151, 223); /* Logger garbage collected, filter "M" */
 	
 	--bgDEV: rgb(255, 255, 187);
@@ -47,15 +47,16 @@
 
 .lineSpacer {height: 0.5em;} /* Not rem */
 
-.smallbtn {
+.smallbtn { /* TODO Set button disabled attribute if parents have .pn */
 	font-size: smaller;
 	padding:0px;
+	cursor: pointer;
 }
 
+input[type="radio"] {cursor: pointer;}
 
 
 /* Header >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
-
 
 #titleID {
 	background-color: var(--bgDisco);
@@ -127,10 +128,10 @@
 	outline: dashed var(--bgDisco);
 	cursor: var(--cntxtMnCrsr);
 }
-/* Logger status colors/decoration  //DOCU #2540b06f */
-.lg.gc.stp                 { color: var(--fltrSTPGC); text-decoration: line-through; }
-.lg.stp:not(.gc)           { color: var(--fltrSTP); }
-.lg.gc:not(.stp):not(.sil) { color: var(--fltrGC);  text-decoration: line-through; }
+/* Logger status colors/decoration  DOCU #2540b06f */
+.lg.gc.ign                 { color: var(--fltrIGNGC); text-decoration: line-through; }
+.lg.ign:not(.gc)           { color: var(--fltrIGN); }
+.lg.gc:not(.ign):not(.sil) { color: var(--fltrGC);  text-decoration: line-through; }
 .lg.sil:not(.gc)           { color: var(--fltrSIL); }
 .lg.gc.sil                 { color: var(--fltrSILGC); text-decoration: line-through; }
 
@@ -245,6 +246,13 @@
 	line-height: normal;
 	opacity: 1;
 }
+
+/* 4) Extrabuttons >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
+
+.xtB:hover {
+	outline: dashed var(--bgDisco);
+}
+
 
 /* Special output lines >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> */
 

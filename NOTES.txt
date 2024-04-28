@@ -4,29 +4,54 @@ CONTENTS
 *C) Different WebSocket implementations, technical details
 *D) Benchmarks
 
-*********************************************
-* A) LogSocketServer.java programming notes *
-*************'*******************************
-
-// javax.websocket:
-// * By default, there is one instance of an Endpoint per client (i.e. WsSession) unless this behavior is overridden by a custom Configurator implementation.
-// * The container will allow only one thread (per client) to enter the (lifecycle callback) methods of the server endpoint. In case there is a custom Configurator implementation which changes this semantic e.g. provide a singleton endpoint, then multiple threads will be able to invoke this instance concurrently and thread safety has to be built in explicitly.
-// * Typically, each Session instance registers (via the addMessageHandler method) a separate instance of a MessageHandler i.e. there is a one-to-one relation b/w the peer who is sending a message (client), the Session (let's assume it's on the server end) and the MessageHandler instance (in this case it's responsible for receiving messages on the server side).
-// * The container will do as much as it can do ensure thread safety i.e. in case of MessageHandlers, it makes sure that only one thread [per WsSession! - Martin] enters a specific MessageHandler instance. In case the developer implementation is such that a single MessageHandler instance is registered to multiple Sessions, then concurrent access is inevitable and this needs to be accounted for.
-
-// javax.websocket: Excellent book from the master himself, Dr. Danny Coward:
-// #DDC https://www.oreilly.com/library/view/java-javax.websocket-programming/9780071827195/
-
-https://abhirockzz.wordpress.com/tag/websocket/
-//-------
-
-// JDK 11 java.net.http.WebSocket:
-// Kishori Sharan: Java 13 Revealed For Early Adoption and Migration Second Edition (2019)
+JavaScript notes are in LogSocketClient/client_init.js
 
 
-// https://www.oracle.com/technical-resources/articles/java/jsr356.html
+**************************************
+* A1) Java general programming notes *
+*************'************************
+
+//-----------------------------------------------------------------------------
+finalize() / GC / Weak references / ReferenceQueue:
+
+ReferenceQueue:
+// https://web.archive.org/web/20100819115659/http://weblogs.java.net/blog/2006/05/04/understanding-weak-references
+// "WeakReferences are enqueued as soon as the object to which they point becomes weakly reachable."
+// NOT HERE! (Likely depends on version of garbage collector) see #WeakReferenceTEST in RandomVar.java
+//----------------------
+
+Flaws of Finalization:
+https://www.baeldung.com/java-18-deprecate-finalization
+"In finalize(), we could write code that would resurrect the object and make it unworthy for collection. This issue is not there in the cleaner API, as the CleaningState object cannot access the original object. 
+
+Additionally, the cleaner API requires proper registration of the cleaning action on the object, which is done after the object creation is complete. Therefore, the cleaning action can’t process improperly initialized objects. Moreover, this sort of cleaning action is cancellable, unlike finalization. "
+
+https://inside.java/2022/05/25/clean-cleaner/
+but...
+ "The Cleaner has a thread that waits for registered objects to become unreachable and runs the corresponding cleanup function F. A Cleaner and its thread is fairly heavyweight and should be shared within an application, package, or class where possible."
+"The most lightweight cleanup function can, with careful attention to detail, be a lambda. The lambda must not refer to *this* implicitly or explicitly. The lambda body cannot refer to fields in the constructor. This is more restrictive than the usual allowance to use final or effectively final values.
+
+Converting to cleanup functions from finalizers may require a bit of refactoring to separate out the state. The refactoring can improve the structure and reliability of the class."
+
+//-----------------------------------------------------------------------------
+ * #note0 Java/JS DIFFERENCE in String.split: 
+ *        JS ... stops when limit entries have been placed in the array. >>> Any leftover text is not included in the array at all. <<<
+ *        Java ... the pattern will be applied at most limit - 1 times, the array's length will be no greater than limit,
+ *             and >>> the array's last entry will contain all input beyond the last matched delimiter <<< .
+
+//-----------------------------------------------------------------------------
+Singletons:
+
+//  J.Bloch: Effective Java, on singletons: "As of release 1.5, there is a third approach to implementing singletons. Simply make an enum type with one element: [...] This approach is functionally equivalent to the public field approach, except that it is more concise, provides the serialization machinery for free, and provides an ironclad guarantee against multiple instantiation, even in the face of sophisticated serialization or reflection attacks. While this approach has yet to be widely adopted, a single-element enum type is the best way to implement a singleton."
+
+// Jon Skeet: https://stackoverflow.com/a/427919/3123382
+// Basically you only use the singleton pattern when you want an instance. If static methods work okay for you, then just use those and don't bother with the enum.
+
+// https://stackoverflow.com/a/7048217/3123382
+// The enum singleton IMHO isn't as clean or obvious as this one and is therefore not as good: MyClass.getInstance() is the industry standard for singletons - everyone who uses it automatically (should) knows that they are dealing with a singleton. This pattern has the right API and the right implementation under the hood.
 
 
+//-----------------------------------------------------------------------------
 //TODO synchronized / locks for optimized performance.
 //     https://www.baeldung.com/java-synchronized https://www.baeldung.com/java-atomic-variables https://www.baeldung.com/java-volatile-variables-thread-safety
 //     https://www.baeldung.com/lock-free-programming
@@ -45,6 +70,10 @@ https://abhirockzz.wordpress.com/tag/websocket/
 // In practice, this means that more than ever, you should make sure that locks and stamps do not escape their enclosing code blocks.
 // https://www.javacodegeeks.com/2014/06/java-8-stampedlocks-vs-readwritelocks-and-synchronized.html
 
+The "Double-Checked Locking is Broken" Declaration
+http://www.cs.umd.edu/%7Epugh/java/memoryModel/DoubleCheckedLocking.html
+
+//-----------------------------------------------------------------------------
 
 //TODO ? StringBuilder ? StringJoiner ? Text Blocks ?
 //      https://dzone.com/articles/jdk-9jep-280-string-concatenations-will-never-be-t
@@ -53,6 +82,36 @@ https://abhirockzz.wordpress.com/tag/websocket/
 //      https://www.baeldung.com/java-string-concatenation-methods
 //      https://todd.ginsberg.com/post/java-17/ten-things-i-love/
 
+//-----------------------------------------------------------------------------
+
+
+https://stackoverflow.com/questions/47162098/is-it-possible-to-match-nested-brackets-with-a-regex-without-using-recursion-or/47162099#47162099
+https://regex101.com/r/yR0sS4/1
+
+
+
+
+****************************************
+* A2) Java WebSocket programming notes *
+****************************************
+
+// javax.websocket:
+// * By default, there is one instance of an Endpoint per client (i.e. WsSession) unless this behavior is overridden by a custom Configurator implementation.
+// * The container will allow only one thread (per client) to enter the (lifecycle callback) methods of the server endpoint. In case there is a custom Configurator implementation which changes this semantic e.g. provide a singleton endpoint, then multiple threads will be able to invoke this instance concurrently and thread safety has to be built in explicitly.
+// * Typically, each Session instance registers (via the addMessageHandler method) a separate instance of a MessageHandler i.e. there is a one-to-one relation b/w the peer who is sending a message (client), the Session (let's assume it's on the server end) and the MessageHandler instance (in this case it's responsible for receiving messages on the server side).
+// * The container will do as much as it can do ensure thread safety i.e. in case of MessageHandlers, it makes sure that only one thread [per WsSession! - Martin] enters a specific MessageHandler instance. In case the developer implementation is such that a single MessageHandler instance is registered to multiple Sessions, then concurrent access is inevitable and this needs to be accounted for.
+
+// javax.websocket: Excellent book from the master himself, Dr. Danny Coward:
+// #DDC https://www.oreilly.com/library/view/java-javax.websocket-programming/9780071827195/
+
+https://abhirockzz.wordpress.com/tag/websocket/
+//-------
+
+// JDK 11 java.net.http.WebSocket:
+// Kishori Sharan: Java 13 Revealed For Early Adoption and Migration Second Edition (2019)
+
+
+// https://www.oracle.com/technical-resources/articles/java/jsr356.html
 
 //-----------------------------------------------------------------------------
 
@@ -119,9 +178,26 @@ https://tradermade.com/tutorials/real-time-forex-cfd-and-crypto-websocket-with-j
 April 28, 2019  Java theory and practice: Explore the new Java SE 11 HTTP Client and WebSocket APIs
 https://developer.ibm.com/tutorials/java-theory-and-practice-3/
 
-//-----------------------------------------------------------------------------
-
 August 2018 https://www.researchgate.net/publication/330298316_Performance_Comparison_and_Evaluation_of_WebSocket_Frameworks_Netty_Undertow_Vertx_Grizzly_and_Jetty
+
+const closeEvtCode = new Map(); //  #4b98b431
+closeEvtCode.set(1000, ["Normal Closure", "The connection successfully completed the purpose for which it was created."]);
+closeEvtCode.set(1001, ["Going Away", "The endpoint is going away, either because of a server failure or because the browser is navigating away from the page that opened the connection."]);
+closeEvtCode.set(1002, ["Protocol error", "The endpoint is terminating the connection due to a protocol error."]);
+closeEvtCode.set(1003, ["Unsupported Data", "The connection is being terminated because the endpoint received data of a type it cannot accept. (For example, a text-only endpoint received binary data.)"]);
+closeEvtCode.set(1004, ["Reserved", "Reserved. A meaning might be defined in the future."]);
+closeEvtCode.set(1005, ["No Status Rcvd", "Reserved. Indicates that no status code was provided even though one was expected."]);
+closeEvtCode.set(1006, ["Abnormal Closure", "Reserved. Indicates that a connection was closed abnormally (that is, with no close frame being sent) when a status code is expected."]);
+closeEvtCode.set(1007, ["Invalid frame payload data", "The endpoint is terminating the connection because a message was received that contained inconsistent data (e.g., non-UTF-8 data within a text message)."]);
+closeEvtCode.set(1008, ["Policy Violation", "The endpoint is terminating the connection because it received a message that violates its policy. This is a generic status code, used when codes 1003 and 1009 are not suitable."]);
+closeEvtCode.set(1009, ["Message Too Big", "The endpoint is terminating the connection because a data frame was received that is too large."]);
+closeEvtCode.set(1010, ["Mandatory Ext.", "The client is terminating the connection because it expected the server to negotiate one or more extension, but the server didn't."]);
+closeEvtCode.set(1011, ["Internal Error", "The server is terminating the connection because it encountered an unexpected condition that prevented it from fulfilling the request."]);
+closeEvtCode.set(1012, ["Service Restart", "The server is terminating the connection because it is restarting."]);
+closeEvtCode.set(1013, ["Try Again Later", "The server is terminating the connection due to a temporary condition, e.g. it is overloaded and is casting off some of its clients."]);
+closeEvtCode.set(1014, ["Bad Gateway", "The server was acting as a gateway or proxy and received an invalid response from the upstream server. This is similar to 502 HTTP Status Code."]);
+closeEvtCode.set(1015, ["TLS handshake", "Reserved. Indicates that the connection was closed due to a failure to perform a TLS handshake (e.g., the server certificate can't be verified)."]);
+
 
 
 *****************

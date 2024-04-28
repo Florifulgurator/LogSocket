@@ -2,10 +2,9 @@
  * client_gui.js
  *
  * Mostly concerned with user interactions. 
- * Ultimately just another file with a file name.
  *****************************************************************************/
 
-console.log("client_gui.js: Hello World! 9");
+console.log("client_gui.js: Hello World! 10");
 
 
 var GUIworkQueue = MakeAsyncQueue("GUIworkQueue");
@@ -62,9 +61,28 @@ function onSelect(ev) {
 function outputClick(ev) {
 	hideContextMenus();
 	const el = ev.target;
-	if ( el.className.indexOf("hl")!=-1 ) { removeColor(el); return; } 		 // this should suffice... #41f603b5
-	//if ( el.classList.contains('hl') ) { removeColor(el); return; }    // #41f603b5 CSS hl removed
-	if ( el.classList.contains('xtS') ) { toggleExtraTxtWin(el); return; }
+	//if ( el.classList.contains('hl') ) { removeColor(el); return; } // #41f603b5 CSS hl removed
+	if ( el.className.indexOf("hl")!=-1 ) {		                      // this should suffice...
+		removeColor(el);
+		return;
+	} 
+	if ( el.classList.contains('xtS') ) {
+		toggleExtraTxtWin(el);
+		return;
+	}
+	if ( el.classList.contains('smallbtn') ) {
+		const btnSpan = el.parentNode;
+		if ( btnSpan.classList.contains('xtB') ) {
+			btnSpan.classList.add("pn"); //switch off buttons
+			for ( let el=btnSpan.firstElementChild ; el; el=el.nextElementSibling ) el.disabled=true;
+			const cmd = extraWeakMap.get(btnSpan);
+			if ( cmd!=null )
+				doSend(`${cmd} ${el.value}`);
+			else
+				alertRed("BUG #4da5410b");
+		}
+		return;
+	}
 }
 
 function outputCtxtMenu(ev) {
@@ -127,8 +145,8 @@ function _search()      { if( searchEl.value.length>1 ) highlight(searchEl.value
 function _garbageColl()    { doSend("!GC"); if(window.gc) window.gc(); }
 function _comment()        { doSend("!REM "+textID.value); }
 function _pingLogSockets() { doSend("/PING"); }
-function _caseSensi() { caseSensitive = document.getElementById("caseID").checked; }
-function _showGC()    { logGC = document.getElementById("logGCID").checked; }
+function _caseSensi()      { caseSensitive = document.getElementById("caseID").checked; }
+function _cmdGC()          { cmdGC = document.getElementById("cmdGCID").checked; }
 
 function _synchClocks() {
 	document.getElementById("syClSvBtn").disabled=true; // #2ebbea73
@@ -141,9 +159,8 @@ function _synchClocksS() {
 
 
 function _showCmds() { // TODO #  Hard work machinery maybe not needed here, as there aren't many cmds
-	cssRule_cmd.style.display =
-		document.getElementById("showCmdsID").firstChild.checked ?
-		"block" : "none";
+	const chkd = document.getElementById("showCmdsID").firstChild.checked;
+	cssRule_cmd.style.display =	chkd ? "block" : "none";
 	updateGUIsync();
 }
 
@@ -313,7 +330,7 @@ function _cleanupDltdLggrs() {
 		lggrListEl.removeChild( document.getElementById(`l${shortId}`).parentNode );
 		shortId2T.delete(shortId);
 	});
-	gcLggrs=[];  // TODO: forget gcLggrs, clean up by CSS class gc, stp
+	gcLggrs=[];  // TODO: forget gcLggrs, clean up by CSS class gc, ign
 	
 	lastListedShortId = "";
 	for ( let trEl=lggrListEl.firstElementChild; trEl; trEl=trEl.nextElementSibling ) {
@@ -384,33 +401,6 @@ function newLogger_show([clr, on, shortId, realm,  subRealm, longId, comment]) {
 // Logger filter list 
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-const fltrListEl = document.getElementById("filter1LstID"); // TBODY
-const fltrListLinePT = getPrototypeEl("fltrListLine");
-//---
-function filter1ListAdd(rule) { //used only by function filter1_add(s)
-		const realm = rule.split("#", 1)[0]; // #note0
-		const label = rule.substring(realm.length);
-		const newLine = fltrListLinePT.cloneNode(true);
-		const slct_r = newLine.querySelector("select.r"); // r ealm (not r ight)
-		const slct_l = newLine.querySelector("select.l"); // l abel
-
-		slct_r.querySelector("option[selected]").textContent = realm;
-		slct_l.querySelector("option[selected]").textContent = label;
-
-
-
-		slct_r.addEventListener("change", filter1_changeEvt); slct_l.addEventListener("change", filter1_changeEvt);
-		makeSmallSELECT(slct_r); makeSmallSELECT(slct_l);
-
-		return fltrListEl.appendChild(newLine);
-}
-//---
-const fltrSctnDIV = document.getElementById("fltrSctnDIV");
-//---
-function filter1ListSetMaxHeight() { // to be called after (last) filter1ListAdd
-	fltrSctnDIV.style.maxHeight = null; // no joke
-	fltrSctnDIV.style.maxHeight = Math.round(fltrSctnDIV.getBoundingClientRect().height)+"px";
-}
 
 
 
@@ -481,8 +471,17 @@ function _filter1RmvBtnClick() { console.log("_filter1RmvBtnClick");
 
 
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-//  Extratext Window
+//  Extratext Window, extraButtons
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+
+function disableExtraButtons(btnSpan) {
+	GUIworkQueue.push( () => {
+		btnSpan.classList.add("pn");
+		for ( let el=btnSpan.firstElementChild ; el; el=el.nextElementSibling ) el.disabled=true;
+	});
+}
+//TODO #4d938251
 
 // Only one Extratext Window open at a time
 var currXtrTxtWinSymbEl = null; // Click-symbol of currently open extratext window
@@ -519,13 +518,13 @@ function toggleExtraTxtWin(clickedSymEl) { // caller: outputClick
 		xtWinEl.className = `xtW ${bgClass}`;
 
 
-		xtWinEl.appendChild(document.createTextNode(extraTxtMp.get(clickedSymEl)));
+		xtWinEl.appendChild(document.createTextNode(extraWeakMap.get(clickedSymEl)));
 		currXtrTxtWinSymbEl.append(xtWinEl); 
 
 		xtWinEl.style.display = "inline-block"; //Dimensions valid only after display!
-		// Now we use extraTxtMp to store window width.
-		extraTxtMp.delete(clickedSymEl);
-		extraTxtMp.set( xtWinEl, xtWinEl.getBoundingClientRect().width ); // it seriously has decimal places
+		// Now we use extraWeakMap to store window width.
+		extraWeakMap.delete(clickedSymEl);
+		extraWeakMap.set( xtWinEl, xtWinEl.getBoundingClientRect().width ); // it seriously has decimal places
 	}
 	
 	placeExtraTxtWin(xtWinEl);
@@ -542,7 +541,7 @@ function placeExtraTxtWin(xtWinEl) { //FIXME #6660f095 Classic: Avoid horiz scro
 	setTimeout(()=>{xtWinEl.style.opacity = 1;}, 1); // #25035ec2 opacity transition and display change problem
 	xtWinEl.style.display = "inline-block";
 
-	const xtrTxtWinFullWidth = extraTxtMp.get(xtWinEl); //might have changed meanwhile
+	const xtrTxtWinFullWidth = extraWeakMap.get(xtWinEl); //might have changed meanwhile
 
 	// output area left margin in document coordinates:
 	const lll = currXtrTxtWinSymbEl.parentNode.getBoundingClientRect().left
@@ -580,7 +579,7 @@ function placeExtraTxtWin(xtWinEl) { //FIXME #6660f095 Classic: Avoid horiz scro
 	
 
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-// Menu for colored search results
+// Context menu on colored search results
 
 function contextMenu1(ev) {
 	const clickedEl = ev.target;
@@ -609,33 +608,10 @@ function _cntxtMn_RemvClr() {
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 // Context menu on logger IDs
 
-function contextMenu3(ev) {
-	const clickedEl = ev.target;
-	cntxtMenuData.targetEl = clickedEl;
-	cntxtMenuData.txt = clickedEl.textContent.trim()
-	const [realm, rest] = cntxtMenuData.txt.split("/",2);
-	const label = rest.substring(rest.indexOf("#")).split(";",1)[0]
+// function contextMenu3(ev) --> client_filter.js
 
-	document.getElementById("ctxMnLggrFltrID").innerHTML = filter1_rule2html("M", realm, label);
 
-	placePopupMenu(cntxtMenu3El, ev.clientX, ev.clientY, clickedEl);
-}
-//---
-function filter1_rule2html(strength, realm, label) { return `<span class='o'>M</span>&nbsp;${realm}<span class='smallr'>&nbsp;&wedge;&nbsp;</span>${label}`; }
-//---
 
-function _stopLggr() { //DEV #23e526a3
-	const [realm, rest] = cntxtMenuData.txt.split("/",2);
-	const LgScktNr = rest.split("#",1)[0];
-	const [label, dpl] = rest.substring(LgScktNr.length).split(";",2);
-	if (Number.isNaN(LgScktNr) || !label ) {
-		console.error("Syntax error in lggr ID:", cntxtMenuData.txt);
-		return;
-	}	
-
-	doSend(`/FILTER ${realm} /* ${label} ;*`);
-	hideContextMenus();
-}
 
 
 
@@ -645,11 +621,11 @@ function _stopLggr() { //DEV #23e526a3
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 
-function alertRed(html) {clientMsg(html,"clntMsgRed",3000);}
-function alertBlue(html) {clientMsg(html,"clntMsgBlue",2000);}
+function alertRed(html)   {clientMsg(html,"clntMsgRed",3000); console.error("alertRed:", html);}
+function alertBlue(html)  {clientMsg(html,"clntMsgBlue",2000); console.log("alertBlue:", html);}
 function alertGreen(html) {clientMsg(html,"",1000);}
 //TODO AsyncQueue for messages with pause depending on severity
-function clientMsg(html, extraClass, ms) { setTimeout(()=>{ clientMsg_(html, extraClass); console.log("clientMsg:",html)},20); }
+function clientMsg(html, extraClass, ms) { setTimeout(()=>{clientMsg_(html, extraClass);}, 20); }
 //---
 const upprCentrDIV = document.getElementById("clientMsgsID");
 var clientMsgFadeTimeoutID = null;
@@ -670,8 +646,6 @@ function clientMsg_fadeout() {
 	if ( !upprCentrDIV.classList.contains("nofadeout") ) //Not a real CSS class, just a marker #4c64a311
 		clientMsgFadeTimeoutID = setTimeout( ()=>{upprCentrDIV.classList.add("fadeout");upprCentrDIV.style.opacity = 0.2;}, 5555 );
 }
-upprCentrDIV.addEventListener('mouseenter', clientMsg_fadeout);
-upprCentrDIV.addEventListener('contextmenu', ()=>{upprCentrDIV.style.display="none";});
 
 
 	

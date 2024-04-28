@@ -5,9 +5,18 @@ import java.util.stream.Stream;
 
 public class MGutils {
 
+// General >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
 static final Pattern dotPttrn = Pattern.compile("[.]");
 
 public static String shortClObjID(Object o) { return o==null?"null":Stream.of( dotPttrn.split(o.toString()) ).reduce((first,last)->last).get(); }
+
+public static String getCallr(int skp)	{ // getCallr(0)=="getCallr"  getCallr(1)==called
+	return StackWalker.getInstance().walk(stream -> stream.skip(skp).findFirst().get()).getMethodName();
+}
+
+
+// Maths >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 public static double square(double x) { return x*x; }
 
@@ -20,7 +29,14 @@ public static double round1(double x) {return Math.round(10.0*x)/10.0;}
 public static double round(double x)  {return Math.round(x);}
 
 
+// Time >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
+public static final long   sysT_T0 = System.nanoTime();
+public static double       sysT_Q = 1.0; //Clock/quartz drift
+public static final double sysT_ms() { return round3(sysT_Q*(System.nanoTime()-sysT_T0) /1000000.0); }
+
+
+// WWW >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 public static String escapeHTML(String s) { // non-HTML --> safe HTML
 	if( s == null || s.length() == 0 ) return s;
@@ -40,14 +56,6 @@ public static String escapeHTML(String s) { // non-HTML --> safe HTML
 	return sb.toString();
 }
 
-// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-public static class TEST {
-
-	public static void main(String[] args) {
-		System.out.println(escapeHTML("<>>#lala 'bla' \"foo\" bar>\n<\n>\n\""));
-	}
-}
-// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 }
 

@@ -4,7 +4,6 @@ console.log("client_TEST.js: Hello World! 2");
 const showTestMenu=true;
 var TEST1 = showTestMenu; // When developing
 
-var TEST2 = TEST1 && true; //  CSS .msh test
 
 // ******************************
 // * Performance test scenario: *

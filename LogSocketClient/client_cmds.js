@@ -24,20 +24,17 @@ var misCount=0;
 //---
 function onMessage(evt) {
 	// TODO buffer, execute (some) commands async
-
+	// TODO Single-letter commands, when all is consolidated. Replace switch with array of lambdas.
+	
 	const srvrMsg = evt.data;
 	const first = srvrMsg.split(" ",1)[0];
 	const [T, longId, shortId, numMsgs, flag] = first.split("&",5);
-	// leading "*" / "+" sticks at T //flags: #2fa32174
+	// leading "*" / "+" sticks at T  // if nonempty, flag determines special color:  #2fa32174
 
+	// Some copy pasta spaghetti for better performance
 	switch ( srvrMsg.at(0) ) {
 		case "*":
 			//COPYPASTE #5435c2b0 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-			if ( !longId ) {
-				msgOutput(srvrMsg.substring(first.length+1), "S");
-				return;
-			}
-			
 			shortId2numMsgs.set(shortId, numMsgs);
 			if (numMsgsUpdt.notPending) numMsgsUpdt.launch();
 			
@@ -50,17 +47,12 @@ function onMessage(evt) {
 			// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 			logOutput( longId, T.substring(1),
 				srvrMsg.substring(first.length+1),
-				( flag ? flag : shortId2clr.get(shortId) )
+				( flag ? flag : shortId2clr.get(shortId) ) //#2fa32174 
 			);
 			return;
 			
 		case "+":
 			//COPYPASTE #5435c2b0 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-			if ( !longId ) {
-				msgOutput(srvrMsg.substring(first.length+1), "S");
-				return;
-			}
-			
 			shortId2numMsgs.set(shortId, numMsgs);
 			if (numMsgsUpdt.notPending) numMsgsUpdt.launch();
 			
@@ -72,16 +64,25 @@ function onMessage(evt) {
 			}
 			// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 			const part1 = srvrMsg.substring(first.length+1).split("\n",1)[0]; //TODO? normalize /\r?\n/ => /n
-			logOutput( longId, T.substring(1),
-				part1+" ",
-				( flag ? flag : shortId2clr.get(shortId) ),
-				srvrMsg.substring(first.length+part1.length+2) // part2
-			);
+			if (flag!="P")
+				logOutput( longId, T.substring(1),
+					part1+" ",
+					( flag ? flag : shortId2clr.get(shortId) ), //#2fa32174 
+					srvrMsg.substring(first.length+part1.length+2) // part2 for ExtraTextWin
+				);
+			else
+				logOutput( longId, T.substring(1),
+					part1+" ",
+					shortId2clr.get(shortId), 
+					srvrMsg.substring(first.length+part1.length+2), // part2 as click arg
+					true // make button
+				);
 			return;
 
-		case "@":
+		case "@": 
 			// Not logged #R: hand shake, clock sync
-			switch ( srvrMsg.split(" ",1)[0] ) {
+			// TODO use "#": better position in ASCII table
+			switch ( first ) {
 				case "@READY?":
 					GUIworkQueue.push( doSend, "!READY" );
 					return; // #R<<<<
@@ -121,70 +122,84 @@ function onMessage(evt) {
 					} else {
 						doSend("!RSLT "+tong+" "+tong1+" "+ting+" "+ting1);
 						ting = null; ting1 = null; tong = null; tong1 = null; 
-
 					}
 					return; // #R<<<<
 			}
 			
 		case "%":
-			switch ( srvrMsg.split(" ",1)[0] ) {
-				// TODO #1b29f250 If better performance: Maps of cmds, use optional chaining (?.)
+			switch ( first ) {
 			    //   "123456789
 				case "%NEW_LGGR":
 					newLogger(srvrMsg.substring(10));
-					break;
+					countNonLogMsg();
+					msgOutput(srvrMsg, "L", "cmd"); // Add class "cmd" for hiding srvrMsg
+					return;
 				case "%GC_LGGR":
 					GUIworkQueue.push( gcLogger, srvrMsg.substring(9));
-					break;
+					countNonLogMsg();
+					msgOutput(srvrMsg, "L", cmdGC?"cmd":null);
+					return;
 				case "%STOPPED":
 					// Loggers that were active, but got stopped
 					GUIworkQueue.push( stppdLggrs, srvrMsg.substring(9));
-					break;
+					countNonLogMsg();
+					msgOutput(srvrMsg, "S", "cmd"); // Add class "cmd" for hiding srvrMsg
+					return;
 				//   "1234567890123
 				case "%FILTER1_ADD":
 					filter1_add(srvrMsg.substring(13)); // already does GUIworkQueue itself
-					break;
+					countNonLogMsg();
+					msgOutput(srvrMsg, "S", "cmd");
+					return;
 				case "%FIRST_T":
 					firstT = Number.parseInt(srvrMsg.substring(9));
-					break; 
+					countNonLogMsg();
+					msgOutput(srvrMsg, "S", "cmd");
+					return; 
 				case "%TIMERS":
 					setTimeout(()=>{writeSysTimers(srvrMsg.substring(8));},10);
-					break; 			
+					countNonLogMsg();
+					msgOutput(srvrMsg, "S", "cmd");
+					return; 			
 				case "%CLOCK":
 					GUIworkQueue.push( initClock, srvrMsg.substring(7).split(" ",2));
-					break;
+					countNonLogMsg();
+					msgOutput(srvrMsg, "S", "cmd");
+					return;
 				case "%SESSID":
 					GUIworkQueue.push( setSessID, srvrMsg.substring(8));
-					break;
+					countNonLogMsg();
+					msgOutput(srvrMsg, "S", "cmd");
+					return;
+//				case "%GUI_A":
+//					
+//					return;
 				case "%T0CORR":
 					GUIworkQueue.push( T0corrFromSrvr, srvrMsg.substring(8).split(" ",6));
-					break;
-				
+					countNonLogMsg();
+					msgOutput(srvrMsg, "S", "cmd");
+					return;
+				case "%":
+					// general feedback/comment from other client:
+					msgOutput(srvrMsg, "D");
+					return;
+					
 				default:
 					errMsgOutput("UNKNOWN CLIENT COMMAND", srvrMsg, "E");
 					return;
 			}
-			countNonLogMsg();
-			msgOutput(srvrMsg, "S", "cmd"); // Add class "cmd" for hiding srvrMsg
-			return;
 			
-		case "!":	
-			break;
+		case "!":
+			break;	
 		case "/":
 			break;
+			
 		default:
 			errMsgOutput("PREFIX CHAR ERROR", srvrMsg, "E");
 			return;
 	} // END switch ( srvrMsg.at(0) )
 
-	switch ( srvrMsg.split(" ",1)[0].substring(1 )) {
-		case "GC":
-			if ( logGC ) {
-				//countNonLogMsg();
-				msgOutput(srvrMsg, "L");
-			}
-			return;
-			
+	switch ( first.substring(1 )) {
 		case "ERROR":
 			msgOutput(srvrMsg, "E");
 			return;
@@ -200,6 +215,7 @@ function onMessage(evt) {
 			msgOutput(srvrMsg.substring(2), srvrMsg.at(0)=="/"?"L":"S");
 			return;
 	}
+	
 	errMsgOutput("UNKNOWN COMMAND", srvrMsg, "E");
 
 	return;

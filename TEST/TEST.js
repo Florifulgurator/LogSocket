@@ -21,6 +21,7 @@ const lg1 = LogSocket.newLggr(realm, "#TEST#MOUSEENTER");
 const lg2 = LogSocket.newLggr(realm, "#TEST#EVENTSOURCE", "JS EventSource, receives ServerSentEvents from Servlet");
 const lg3 = LogSocket.newLggr(realm, "#TEST#XMLHttpRequest", "POST to Servlet");
 //const lg4 = LogSocket.newLggr(realm, "#TEST#JSLOOP", `JavaScript TEST: ${loop} quick Lorem Ipsums x2`);
+const lg5 = LogSocket.newLggr(realm, "#TEST#WEAKREF", `JavaScript TEST: WeakRefs`);
 
 
 function mouseEnter(ev) {
@@ -48,19 +49,45 @@ function JSLoop() {
 }
 
 
-function duplicateLoop1() {
+function duplicates_1() {
 	var l = [];
-	for (let i=0; i<20; i++) {
-		l[i] = LogSocket.newLggr(realm, "#TEST#DUPLICATELOOP1", `Element ${i} of local array[20] of "same" loggers`);
+	for (let i=0; i<10; i++) {
+		l[i] = new WeakRef(new LogSocket.newLggr(realm, "#TEST#DUPLICATES@1", `Element ${i} of local array[10] of WeakRefs to "same" loggers`));
 	}
+	return new WeakRef(l);
 }
 //---
 var duplicates = [];
-function duplicateLoop2() {
-	for (let i=0; i<20; i++) {
-		duplicates[i] = LogSocket.newLggr(realm, "#TEST#DUPLICATELOOP2", `Element ${i} of global array[20] of "same" loggers`);
+function duplicates_2() {
+	for (let i=0; i<10; i++) {
+		duplicates[i] = LogSocket.newLggr(realm, "#TEST#DUPLICATES_2", `Element ${i} of global array[10] of "same" loggers`);
 	}
 }
+//---
+var wref;
+async function duplicates_3() {
+	wref = duplicates_1();
+	duplicates_2();
+	lg5.log("wref=duplicates_1(); wref.deref()="+wref.deref());
+	dupl3loop();
+}
+function dupl3loop() {
+	lg5.log("Continuing in 2s");
+	setTimeout( ()=> {lg5.log("setTimeout( ()=> {...}, 2000) wref.deref()="+wref.deref());}, 2000);
+	if (window.gc) setTimeout( ()=> {lg5.log("setTimeout( ()=> {...}, 3000) window.gc();"); window.gc(); }, 3000);
+	setTimeout( async ()=> {
+		lg5.log("setTimeout( ()=> {...}, 4000) wref.deref()="+wref.deref());
+		let btn = "";
+		try {
+			btn = await lg5.logPrms("Continue?");
+		} catch (e) { //Promise rejected
+			lg5.logErr(e.message);
+		}
+		if ( btn=="OK" ) dupl3loop();
+	}, 4000);
+	
+}
+
 
 
 function JavaLoop() {

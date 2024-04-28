@@ -17,6 +17,7 @@
 	</script>
 	
 	<script defer type="text/javascript" src="client_lib.js"></script>
+	<script defer type="text/javascript" src="client_filter.js"></script>
 	<script defer type="text/javascript" src="client_clock.js"></script>
 	<script defer type="text/javascript" src="client_TEST.js"></script>
 	<script defer type="text/javascript" src="client_init.js"></script><!-- Some DOCU/remarks in client_init.js -->
@@ -218,7 +219,7 @@ title="Get state of logsockets."/>
 			<label
 title="Log calls of logger finalization method.
 Switched on hardwired. TODO #43d4d9ad">
-			<input type="checkbox" id="logGCID" onclick="_logGC()" disabled/>Log garbage collection</label>
+			<input type="checkbox" id="cmdGCID" onclick="_cmdGC()"/>Garbage collection as internal</label>
 		<br/>
 			<label id="linewrapID"><input type="checkbox" onclick="_linewrap()"/>Line wrap</label><!-- #4ca41226 Necessarily (WHY?) not checked. Cf. css, js -->
 
@@ -282,7 +283,7 @@ when server shuts down
 
 <!-- Context Popup Menus >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> -->
 
-<div class="contextMenu" id="contxtMenu1ID"><!-- TODO rename IDs FIXME click-"active" div not just span -->
+<div class="contextMenu" id="contxtMenu1ID"><!-- TODO rename IDs FIXME click-"active" div, not just span -->
 	<div class="active"><span class="active" onclick="_cntxtMn_Copy()">Copy</span></div>
 	<hr/>
 	<div class="active" 
@@ -302,12 +303,15 @@ title="TODO">Remove user colors</span></div>
 
 <div class="contextMenu" id="contxtMenu3ID">
 	<div class="active" onclick="_stopLggr()">
-		Apply filter:<br/>
-		&nbsp;&nbsp;<span class="mnspcd fgBlack" id="ctxMnLggrFltrID"><!-- [JS] --></span>
+		Add filter rule<br/>
+		&nbsp;&nbsp;<span class="mnspcd fgBlack" id="ctxMn3fltrID"><!-- [JS] --></span><span class="mnspcd fgBlack" id="ctxMn3fltrResID"><!-- [JS] --></span>
 	</div>
-	<div><input type="radio" name="fltrStrength" id="cmslFsM"/><label for="cmslFsM"><span class="mnspcd fgBlack bold">M</span>essages</label>
-	     <input type="radio" name="fltrStrength" id="cmslFsC"/><label for="cmslFsC"><span class="mnspcd fgBlack bold">C</span>reation</label></div>
-	<div class="lineSpacer smallr"></div>     
+	<hr/>
+	<div>to ignore<!-- #2e6bc1a8 -->
+		<input type="radio" name="fltrRes" value="M" id="cmslFsM" checked onchange="_ctxMn3radio(value)"/><label for="cmslFsM"><span class="mnspcd fgBlack bold">M</span>essages</label>
+		<input type="radio" name="fltrRes" value="E" id="cmslFsE" onchange="_ctxMn3radio(value)"/><label for="cmslFsE"><span class="mnspcd fgBlack bold">E</span>xistence</label>
+	</div>
+	<div class="lineSpacer smallr"></div>
 	<div class="hint">All LogSockets, all duplicates.<br/>Edit in "Global logger filter" list. </div>
 </div>
 
@@ -340,6 +344,9 @@ TODO #6b2b50f8 Navigate to next infoLine: right-click (down) left-click (up).">&
 	</div>
 </div>
 
+<div id="extraBttnsPRTTP" class="hidden">
+	<span class="xtB"><input type="button" class="smallbtn" value="OK"/>&nbsp;<input type="button" class="smallbtn" value="Cancel"/></span>
+</div><!-- JS outputClick(ev) recognizes class xtB and does the callback -->
 
 <!-- More in JS -->
 <!-- <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< -->

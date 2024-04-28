@@ -33,7 +33,8 @@
 
 <!-- ===================================================================== -->
 
-<% 	crtrNr++;
+<% 	System.out.println("TEST.jsp Run !!!!!!!!!!!!!!!! Hello World !!!!!!!!!!!!!!!!");
+	crtrNr++;
 
 	Lggr lggr1 = LogSocket.newLggr(this, "Jsp", "#INSTANCE"+crtrNr+"#MAINLGGR");
 	lggr1.logM("Request headers: "+requestHeadersToString(request));
@@ -146,12 +147,13 @@ Loop <span id="loopNrID1">???</span> x 2 Lorem Ipsum logs from JavaScript.
 
 Testing garbage collection and weak reference things:
 <br>
-<input onclick="duplicateLoop1()" value="duplicateLoop1()" type="button">
-Create local array[20] of "same" loggers
+<input onclick="duplicates_1()" value="duplicates_1()" type="button"> Create local array[10] of WeakRefs to "same" loggers, return WeakRef to array (lands nowhere).
+<!-- WeakRef delays garbage collection -->
 <br>
-<input onclick="duplicateLoop2()" value="duplicateLoop2()" type="button">
-Create global array[20] of "same" loggers
+<input onclick="duplicates_2()" value="duplicates_2()" type="button"> Create global array[10] of "same" loggers
 <input onclick="duplicates=[]" value="duplicates=[]" type="button">
+<br>
+<input onclick="duplicates_3()" value="async duplicates_3()" type="button"> Call duplicates_1() and duplicates_2(), check array WeakRef in loop with ExtraButton logger and window.gc();
 
 
 
@@ -160,8 +162,10 @@ Create global array[20] of "same" loggers
 <hr><!-- ----------------------------------------------------------------- -->
 
 <input onclick="pingServlet()" id="pingServletID" value="pingServlet()" type="button" disabled>
+<br>
 
 <input onclick="servletThread()" id="servletThreadID" value="servletThread()" type="button" disabled>
+Test LogSocket WeakRef cleanup daemon and ExtraButton logger with CompletableFuture
 
 <br>
 <input onclick="initEventSource()" id="initEventSourceID" value="Start" type="button" disabled>

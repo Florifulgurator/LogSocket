@@ -34,7 +34,7 @@ public class Clock {
 	
 	// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 	// TEST: Add artificial clock/quartz drift to test clock synchronization on 1 machine.
-	public static final double Q = 1.0;// + 111.111 / (24*60*60*1000.0) ≈ 0.00000128
+	public static double Q = 1.0;// + 111.111 / (24*60*60*1000.0) ≈ 0.00000128
 	//  1.0 + clock drift of 111.111 ms per 24h == 4.629ms/h == 77.2μs/min == 1.3μs/s
 	//  Typical would be 0.5s per 24h == 5.8μs/s == 1μs/172ms
 	
@@ -59,6 +59,7 @@ public static class SyncDaemon {
 	private static boolean T0correction_started = false;
 	private static long lastSrvrMsgT; // to stop T0correction when log activity
 
+	private static RandomVar allT0randomVar = new RandomVar("All tingtong T0 corrections");
 
 	public static synchronized void T0correction(Session s, long lastMsgT) { // Launches thread and returns
 		final int PAR1=200; final int PAR2=170;	final double PAR3=0.7;
@@ -129,7 +130,7 @@ LogSocketServer.exctrService.execute( () -> { // >>>>>>>>>>>>>>>>>>
 	double _avgCS[] = {0.0};
 	double _T0corr[] = {0.0};
 
-	// #E xperimental - For orthogonal least squares:
+	// #Exprmntl - For orthogonal least squares:
 	double _x[] = {0.0}; // double _y[] = {0.0}; == _T0corr
 
 	// No way to efficiently shrink (discard tail of) an ArrayList:
@@ -140,20 +141,22 @@ LogSocketServer.exctrService.execute( () -> { // >>>>>>>>>>>>>>>>>>
 			_avgC[0] += r.C; _avgS[0] += r.S;
 			_avgCS[0] += r.C/r.S;
 			_T0corr[0] += r.D;
-			_x[0] += r.T; // #E
+			_x[0] += r.T; // #Exprmntl
+			allT0randomVar.setVal(r.D);
 		} );
 	_avgC[0] /= usedLen; _avgS[0] /= usedLen; _avgCS[0] /= usedLen; _T0corr[0] /= usedLen;
-	_x[0] /= usedLen; // #E
+	_x[0] /= usedLen; // #Exprmntl
 
 	LogSocketServer.sendText(sess, "%T0CORR OK "+round6(_T0corr[0])+" "+round3(_avgC[0])+" "+round3(_avgS[0]) //#e7c370d7
 		+" "+tingtongRounds+" "+round3(ttt_ms) // for client console.log
 	);
 
-	if (DEV) {	 // #E
-			System.out.println("==== T0 correction: "+ _T0corr[0]);
-			System.out.println("==== Avg msg roundtrip time: Server: "+round3(_avgC[0])+"ms, client: "+round3(_avgS[0]));
-			System.out.println("==== Total tingtong time "+round3( ttt_ms)+"ms tingtongRounds="+tingtongRounds);
-	
+	System.out.println("==== T0 correction: "+ _T0corr[0]);
+	System.out.println("==== Avg msg roundtrip time: Server: "+round3(_avgC[0])+"ms, client: "+round3(_avgS[0]));
+	System.out.println("==== Total tingtong time "+round3( ttt_ms)+"ms tingtongRounds="+tingtongRounds);
+	System.out.println("T0 micro statistics incl. last runs:\n"+allT0randomVar.getASCIIart(3,"ms"));
+
+	if (DEV) {	 // #Exprmntl
 			// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 			// #613da861 Get better T0corr plus rough estimate of Q by orthogonal least squares method:
 			// Formula in https://en.wikipedia.org/wiki/Deming_regression#Solution (delta=1)

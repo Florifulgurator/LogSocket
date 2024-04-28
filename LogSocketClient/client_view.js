@@ -29,12 +29,15 @@ const msSPAN = document.createElement("span"); msSPAN.className="ms"; // "Millis
 	  msSPAN.appendChild(document.createTextNode(" "));
 const extraSPAN = document.createElement("span"); extraSPAN.className="xtS"; // Symbol to open/close extratext window
 	  extraSPAN.appendChild(document.createTextNode("…▼ ")); // "…👁▼" Some #UTF (e.g. eye) spoil line spacing on Chrome
+const extraBTTNS = getPrototypeEl("extraBttns");
+function _extraBtnClick(val) {doSend();} // DEL ??
 //---
 var lastLogLineEl;
 var	lastMsNmbr = Number.NaN;
-var extraTxtMp = new WeakMap(); // Necessary for chunk deletion. Doc: "Once an object used as a key has been collected, its corresponding values in any WeakMap become candidates for garbage collection as well — as long as they aren't strongly referred to elsewhere." 
+var extraWeakMap = new WeakMap(); // Holds data for extra elements. Weakness for chunk deletion. Doc: "Once an object used as a key has been collected, its corresponding values in any WeakMap become candidates for garbage collection as well — as long as they aren't strongly referred to elsewhere." 
+var currExtraButtonSPAN = new Map(); // ExtraButton cmd string -> WeakRef
 //---
-function logOutput(prfx, T, txt, clr, extraText) {
+function logOutput(prfx, T, txt, clr, extraText, extraButton) {
 	// clr: Background color "B"=Buffer "F"=Fail "S"=Server "E"=Error "L"=LogSocket "D"=Disco #7e821f32
 
 	const divEl = outputLineDIV.cloneNode(); divEl.className = `bg${clr}${stripeCtr%2}`;
@@ -94,15 +97,30 @@ function logOutput(prfx, T, txt, clr, extraText) {
 
 	divEl.append(TEl, prfxEl, txt);
 
-	if (extraText) {
-		const xSmbEl = extraSPAN.cloneNode(true);
-		extraTxtMp.set(xSmbEl, extraText); // #6aa1b244 Text to be taken care of later  
-		divEl.append(xSmbEl);
+	if ( extraText != null ) {
+		if ( extraButton ) {
+			// extraText is argument for button click, processed via function outputClick(ev)
+			let btnSpan = currExtraButtonSPAN.get(extraText)?.deref();
+			if ( btnSpan ) {
+				// Disable previous buttons from same command
+				disableExtraButtons(btnSpan);
+			}
+			btnSpan = extraBTTNS.cloneNode(true);
+			currExtraButtonSPAN.set(extraText, new WeakRef(btnSpan)); // #4d938251
+			extraWeakMap.set(btnSpan, extraText);
+			divEl.append(btnSpan);
+		} else if ( extraText != "") {
+			// Add Extratext window symbol. Click processed via function outputClick(ev).
+			// Text to be taken care of later (performance!) #6aa1b244 
+			const xSmbEl = extraSPAN.cloneNode(true);
+			extraWeakMap.set(xSmbEl, extraText);
+			divEl.append(xSmbEl);
+		}
 	}
 	
 	outputEl.append(divEl);
 	if ( ++stripeCtr%CHUNK_SIZE == 0 ) newOutputChunk();
-}	
+}
 //---
 function msgOutput(txt, clr, extraClass1) {	// Client message, client/server/logsocket command
 	const  divEl = outputLineDIV.cloneNode();
@@ -294,19 +312,8 @@ function getNextLggrClr() {
 	return clr;
 }
 
-// %STOPPED"
-// Loggers that were active, but got stopped  TODO #36e7e6a9 GUI Queue
-function stppdLggrs(s) {  //DEV #23e526a3
-console.log("stppdLggrs: "+s);
-	const shortIdList = s.split(" ");
-	for ( const shortId of s.split(" ")) {
-		let el = document.getElementById(`l${shortId}`); 
-		if (el) el.classList.add("stp"); //DOCU #2540b06f  Logger Status
-		else console.error(`stppdLggrs(${s}) ERROR1`, el);
-	}
-}
-//---
-//Command `!GC_LGGR ${lgr.shortId} ${lgr.longId}`
+// Command `!GC_LGGR ${lgr.shortId} ${lgr.longId}`
+// Here longId can have ";0" et end #66f78f43
 var gcLggrs=[];  // Remember garbage collected loggers for cleanup button
 //---
 function gcLogger(s) {
@@ -362,30 +369,9 @@ function gcLogger(s) {
 }
 
 
-
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 // Logger filter 
-
-// %FILTER1_ADD
-function filter1_add(s) {
-	GUIworkQueue.push( ()=> {
-		for ( const rule of s.split(" ")) {
-			if (filter1.has(rule)) continue; //#7ad7d40e
-			filter1.set(rule, hurz=filter1ListAdd(rule));  console.log("Rule \""+rule+"\" Element", hurz);
-		}
-	} );
-	GUIworkQueue.push( filter1ListSetMaxHeight );
-}
-
-// %FILTER1_REMOVE 
-function filter1_remove(rule) {
-	let el = filter1.get(rule);
-	if ( !el ) {console.error(`Rule ${rule} not in filter1`); return;}
-	filter1.remove(rule);
-	
-}
-
-
+//  --> client_filter.js
 
 // Logger buerocracy <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< 
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

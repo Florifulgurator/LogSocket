@@ -1,14 +1,8 @@
 package florifulgurator.logsocket.javalggr;
 
 import static florifulgurator.logsocket.utils.MGutils.*;
-import florifulgurator.logsocket.utils.Tuple;
-
-import java.io.IOException;
-import java.lang.ref.WeakReference;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -18,13 +12,21 @@ import java.util.stream.Stream;
 
 public class Filter {
 
-public static record Rule(String realm, String[] labels, long labelsCode, String result) {
-	public String toString() { return (realm==null?"*":realm) + ">"	+ (labels==null?"*":Arrays.stream(labels).collect(Collectors.joining("&"))) + "="	+ result;	}
-	public String toString2() {	return (realm==null?"":realm) + (labels==null?"":Arrays.stream(labels).collect(Collectors.joining("")) ); }
+public static record RuleLR(String realm, String[] labels, long labelsCode, String result) {
+	public String toRuleRStr() {
+		return (realm==null?"*":realm) + ">" + (labels==null?"*":Arrays.stream(labels).collect(Collectors.joining("&")))
+	           + "=" + result;
+	}
+	public String toRuleStr() {
+		return (realm==null?"":realm) + (labels==null?"":Arrays.stream(labels).collect(Collectors.joining("")) );
+	}
+	public String toString() { //DIAGN
+		return this.toRuleRStr()+" labelsCode="+Long.toBinaryString(labelsCode);
+	}
 
 }
 
-static Set<String>                       rules = ConcurrentHashMap.newKeySet(); // insertion order to keep things tidy
+static Map<String, String>            rules = new ConcurrentHashMap<>(); // insertion order to keep things tidy
 
 static Map<String, Map<Long, String>> realm2labelsCode2RuleResult = new ConcurrentHashMap<>();
 
@@ -38,51 +40,62 @@ static Map<String, Map<Long, String>> realm2labelsCode2RuleResult = new Concurre
 //MyBenchmark.skipListMap_get  avgt    5  0.312 ?  0.014   s/op
 //MyBenchmark.skipList_put     avgt    5  0.351 ?  0.007   s/op
 
-// DOCU Rule string syntax:
-// realm>#label1#label12&label3=M  // #label1#label12 treated as one label. "M" ignore *M*essages, but track existence and make ID
-//  *>#label1&#label2&label3=E     // 3 labels. "E" ignore *E*xistence. No finalize(), no ID for new loggers
+// DOCU #1c887880 Rule string syntax:
+// realm>#label1#label12&#label3=M  // #label1#label12 treated as one label. "M" ignore *M*essages, but track existence and make ID
+//  *>#label1&#label2&#label3=E     // 3 labels. "E" ignore *E*xistence. No finalize(), no ID for new loggers
 // rlm>*=M
 
+@SuppressWarnings("serial")
+static class FilterError extends RuntimeException {
+    public FilterError(String s) { super(s); }
+	@Override
+    public synchronized Throwable fillInStackTrace() { return this; }
+}
 
-static Rule parseRuleString(String ruleStr) {
+
+
+static RuleLR parseRuleString(String ruleRStr) throws FilterError {
 	long labelsCode = 0L;
-	int a = ruleStr.indexOf('>');
-	int b = ruleStr.indexOf('=');
+	int a = ruleRStr.indexOf('>');
+	int b = ruleRStr.indexOf('=');
 	// Bug safety:
-	if (a<1) throw new FilterRuleError("Error1 "+ruleStr);
-	if (b==-1) throw new FilterRuleError("Error2 "+ruleStr);
-	if (a+1>=b) throw new FilterRuleError("Error3 "+ruleStr);
-	if (b==ruleStr.length()-1) throw new FilterRuleError("Error5 "+ruleStr);
+	if (a<1) throw new FilterError("parseRuleString("+ruleRStr+") Error1");
+	if (b==-1) throw new FilterError("parseRuleString("+ruleRStr+") Error2");
+	if (b==ruleRStr.length()-1) throw new FilterError("parseRuleString("+ruleRStr+") Error3");
 
 	// Split labels and register:
 	String[] lblL = null;
-	if (ruleStr.charAt(a+1)=='*') {
+	if (ruleRStr.charAt(a+1)=='*') {
 		labelsCode = 0L;
 	} else {
-		if (ruleStr.charAt(a+1)!='#') throw new FilterRuleError("Error4 "+ruleStr);
-		lblL = ruleStr.substring(a+1, b).split("&");
+		if (ruleRStr.charAt(a+1)!='#') throw new FilterError("parseRuleString("+ruleRStr+") Error4");
+		lblL = ruleRStr.substring(a+1, b).split("&");
+		Arrays.sort(lblL);
 		labelsCode = registerLabels( Arrays.stream(lblL) );
 	}
 
 	// New rule:
-	Rule rule = new Rule(
-		(a==1&&ruleStr.charAt(1)=='*') ? null : ruleStr.substring(0, a-1),
+	String result = ruleRStr.substring(b+1);
+	RuleLR ruleLR = new RuleLR(
+		(a==1&&ruleRStr.charAt(1)=='*') ? null : ruleRStr.substring(0, a-1),
 		lblL,
 		labelsCode,
-		ruleStr.substring(b+1)
+		result
 	);
 	// really new?
-	if (!rules.add(rule.toString2())) throw new FilterError("Filter rule "+ruleStr+" already exists: "+rule);
+	String ruleStr = ruleLR.toRuleStr();
+	if ( rules.containsKey(ruleStr) )  throw new FilterError("Filter rule "+ruleStr+" already exists: "+ruleLR.toRuleRStr());
+	rules.put(ruleStr, ruleLR.result);
 	
 	//Register rule:
-	Map<Long, String> labelsCode2RuleResult = realm2labelsCode2RuleResult.get(rule.realm);
+	Map<Long, String> labelsCode2RuleResult = realm2labelsCode2RuleResult.get(ruleLR.realm);
 	if (null==labelsCode2RuleResult) {
 		labelsCode2RuleResult = new ConcurrentHashMap<>();
-		realm2labelsCode2RuleResult.put(rule.realm,labelsCode2RuleResult);
+		realm2labelsCode2RuleResult.put(ruleLR.realm, labelsCode2RuleResult);
 	}
-	labelsCode2RuleResult.put(labelsCode, rule.result);
+	labelsCode2RuleResult.put(labelsCode, ruleLR.result);
 		
-	return rule;
+	return ruleLR;
 }
 
 
@@ -94,18 +107,18 @@ static Rule parseRuleString(String ruleStr) {
 // If zero it means "*" in the rule String.
 
 static Map<String, Long> label2Nr = new ConcurrentHashMap<>();
-static long nextLblNr = 1L;
+static long nextLabelNr = 1L;
 
 public static long registerLabels(Stream<String> labelsStream) {
 	long[] labelsCode = {0L}; // effectively final
 	Long[] labelNr = {0L};
 
 	labelsStream.forEach( lbl -> {
-		if( null==(labelNr[0]=label2Nr.get(lbl)) ) {
-			label2Nr.put(lbl,nextLblNr);
-			labelsCode[0] |= nextLblNr;
-			if( (nextLblNr<<=1) == -9223372036854775808L ) {
-				//TODO #681a8b4e Exlude from filter
+		if( null==( labelNr[0]=label2Nr.get(lbl) ) ) {
+			label2Nr.put(lbl, nextLabelNr); System.out.println("label2Nr.put("+lbl+", "+Long.toBinaryString(nextLabelNr)+"))");
+			labelsCode[0] |= nextLabelNr;
+			if( (nextLabelNr<<=1) == -9223372036854775808L ) {
+				//TODO Exlude from filter
 				throw new FilterError("Max. number of labels reached");
 			}
 		} else {
@@ -122,17 +135,17 @@ public static long registerLabels(Stream<String> labelsStream) {
 
 
 // Apply rule to existing lggrs
-static void applyRule(Rule rule) { //DEV #23e526a3  //DEV #6cb5e491
+static void applyRule(RuleLR ruleLR) { //DEV #23e526a3  //DEV #6cb5e491
 //DEV
-	if ( true || rule.realm==null || rule.labels==null || rule.labels.length!=1 ) {//All realms || all labels || more than 1 label
-		LogSocket.complain("TODO #6776bf39 filter1 rule="+rule);
-		LogSocket.sendMsg("/ALERT_R TODO #6776bf39 Filter:<br/>"+escapeHTML(rule.toString()));
+	if ( true || ruleLR.realm==null || ruleLR.labels==null || ruleLR.labels.length!=1 ) {//All realms || all labels || more than 1 label
+		LogSocket.complain("TODO #6776bf39 filter1 rule="+ruleLR);
+		LogSocket.sendMsg("/ALERT_R TODO #6776bf39 Filter:<br/>"+escapeHTML(ruleLR.toString()));
 		return;
 	}
 	
 	String cmdArgs="";
 	int goneNum=0, fltrdNum=0, alreadyfltrdNum=0;
-	boolean ignore = "E".equals(rule.result);
+	boolean ignore = "E".equals(ruleLR.result);
 	
 /*	
 	synchronized(LogSocket.realmLabel2LggrList) {
@@ -186,7 +199,7 @@ public static class TEST {
 
 		System.out.println(">>>>>>>>>> Testing Filter >>>>>>>>>>\n");
 		for(int i=1;i<70;i++) {
-			System.out.println(i+" "+Long.toBinaryString((nextLblNr<<=1))+" "+nextLblNr );
+			System.out.println(i+" "+Long.toBinaryString((nextLabelNr<<=1))+" "+nextLabelNr );
 		}
 
 	}

@@ -1,73 +1,88 @@
-*****************************************************************
-* Instead of serious systematic docu, snippets from source code *
-* Documentary comments should have a DOCU tag                   *
-*****************************************************************
+*******************************************************************************
+* Instead of serious systematic docu, #links to source code.                  *
+* Documentary comments should have a DOCU tag                                 *
+*******************************************************************************
+
+Javadoc or JSDoc would be buerocratic waste at the current state of development
+and the nature of the project. It is not a library or a museum collection, so
+it doesn't need a catalog.
+
+More important than describing the obvious at the _header_ of a function is to
+link the usage, definitions etc. of data structures and variables and related
+code etc. from within the function _body_.
+
+For that a simple gimmick, the #hashtag, and the power of the IDE search
+function are sufficient and more effective. It is _universal_ even. No need for
+yet another file-extension specific formalism.
+
+The evolutionary state of code is indicated by TAGs.
+
+ *
+ *** Task/code tags ***
+ *   TODO, FIXME, HARDWIRED, DOCU, COPYPASTE, TEST, NOTE, CAVEAT,
+ *   CLEANUP, WHY, DEL, DEV, UNFINISHED, DIAGN,
+ *   #<string> e.g. #UTF to mark special UTF-8 characters (test rendering required).
+ *   Single-letter #L hashtags refer to things in the visible vicinity, e.g. in complicated algorithms.
+ * 
+ * BUG is for inside error message strings, just in case one really shows up.
+ * Use FIXME for actually known bugs.
+ * DEL means stuff to be deleted ASAP.
+ * DEV is current development/work, while TODO is postponed finishing-up.
+ * Test stuff has an all-caps TEST somewhere.
+ * 
+ * //--- Separator between things that belong together
+ * 
+ *** 8-digit hex #hashtags ***
+ *   are references to cross-file things. E.g. #655e8593
+ *   They are for documentation, to see what code is related and to quickly
+ *   make sense of distributed constructs. Strings copied from Java object IDs.
+ * 
+ * Hex #hashtags are my invention, ca. 1999, not patented :-)
+ * TODO Write little app to auto generate random hashtags.
+ * (Why 8-digit hex: Only 2.3% look decimal.)
+ *
+
+
+-------------------------------------------------------------------------------
+LogSocket.java
+
+#57977fd8 LogSocketServer URI HARDWIRED
+#681a8b4e Lggr duplicates
+#40bf1ecb Lggr Realm & Label syntax
+
+-------------------------------------------------------------------------------
+LogSocket.js
+
+#57977fd8 LogSocketServer URI HARDWIRED
+
+-------------------------------------------------------------------------------
+Clock.java
+
+#140aef3e LogSocket system time T comes as integer number of server "clock ticks"
+
+
+-------------------------------------------------------------------------------
+client.css
+
+#2540b06f Logger status colors/decoration
+
+
+-------------------------------------------------------------------------------
+Filter.java
+
+#1c887880 Rule string syntax
+#681a8b4e long integer labelsCode
+
+
+-------------------------------------------------------------------------------
+Lggr.java
+
+#95f0f06 Micro timer & report
 
 
 -------------------------------------------------------------------------------
 
-	// LogSocket system time T comes as integer number of server "clock ticks"
-	// T()/nanoUnit = ms
-	public static final long T() { return Math.round((System.nanoTime()-T0) *milliNanoUnit); }
-
-	public static final long   T0 = System.nanoTime(); // close to max safe integer in JavaScript
-	                                                   // Windows: Last 2 digits of System.nanoTime() either 99 or 00.
-	public static  int         nanoUnit = 100;         // 100: 1Tick == 10μs==1/100ms || 10: 1Tick==1/10ms
-	                                                   // Likely forever hardwired to 100. Dependency: CAVEAT #70249bfa
-	public static  double      milliNanoUnit = nanoUnit/1000000.0;
 
 
--------------------------------------------------------------------------------
-/* Logger status colors/decoration  //DOCU #2540b06f */
-.lg.gc.stp                 { color: var(--fltrSTPGC); text-decoration: line-through; }
-.lg.stp:not(.gc)           { color: var(--fltrSTP); }
-.lg.gc:not(.stp):not(.sil) { color: var(--fltrGC);  text-decoration: line-through; }
-.lg.sil:not(.gc)           { color: var(--fltrSIL); }
-.lg.gc.sil                 { color: var(--fltrSILGC); text-decoration: line-through; }
-
---fltrSTP:   rgb(185, 0, 0);     /* Logger stopped: filter "E" */ /* DOCU #2540b06f */
---fltrSIL:   rgb(0, 0, 185);     /* Logger silenced: filter "M" */
---fltrGC:    rgb(187, 187, 187); /* Logger garbage collected, no filter */
---fltrSTPGC: rgb(223, 151, 151); /* Logger garbage collected, filter "E" */
---fltrSILGC: rgb(151, 151, 223); /* Logger garbage collected, filter "M" */
--------------------------------------------------------------------------------
-
-Filter rule string syntax:
-
-// realm>#label1#label12&label3=M  // #label1#label12 treated as one label. "M" ignore *M*essages, but track existence and make ID
-//  *>#label1&#label2&label3=E     // 3 labels. "E" ignore *E*xistence. No finalize(), no ID for new loggers
-// rlm>*=M
-
--------------------------------------------------------------------------------
-
-// DOCU #681a8b4e long integer labelsCode
-// There can be max. 63 sub-labels per LogSocket. Each new sub-label gets assigned a bit.
-// The order of the sub-labels in the labels string assigned to a logger will not be
-// changed, but for filtering the labels string is represented by the bit pattern
-// given by OR-ing the label bits in a long integer.
-// If zero it means "*" in the rule String.
-
-// DOCU #681a8b4e 
-// Duplicates are counted according to the labels string passed upon logger creation.
-// Sub-label ordering is relevant here, but not for filtering:
-// The filter mechanism uses a long integer labelsCode bit map, where sub-label ordering is irrelevant.
-
-
--------------------------------------------------------------------------------
-Logger Realm & Label syntax:
-
-	illglLblChrsPttrn = Pattern.compile("[^#@A-Za-z0-9_]");
-	illglRlmChrsPttrn = Pattern.compile("\\W");
-
-	String checkedLabel = label;
-	if (label.isEmpty()) {
-		checkedLabel = "#NOLABEL";
-	} else if (label.charAt(0)!='#') {
-		checkedLabel = "#"+label; // else bug!
-	}
-	String checkedRealm = illglRlmChrsPttrn.matcher(realm).replaceAll("");
-	if (checkedRealm.isEmpty()) checkedRealm="Errr";
-	String checkedRealmLabel = checkedRealm + (checkedLabel=illglLblChrsPttrn.matcher(checkedLabel).replaceAll(""));
--------------------------------------------------------------------------------
 
 

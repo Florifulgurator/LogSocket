@@ -5,13 +5,13 @@ console.log("client_lib.js: Hello World! 9");
 // Queue for async functions for sequential execution.
 // Otionally with pause in between. 
 // Functions can be added "while" the queue is working.
-// Results may be passed on to next function.
 
 function MakeAsyncQueue (name, seedResult) {
 	var queue = [];
 	var notifyWorker;
 	var queueNotEmptyPromise = new Promise( (resolve)=>{notifyWorker=resolve;} );
 	var working;
+	var result=null;
 	
 	async function queueWorker() {
 		console.log("Hello World! queueWorker() for "+name+" awaiting work.");
@@ -20,8 +20,8 @@ function MakeAsyncQueue (name, seedResult) {
 		while (working) { await queueNotEmptyPromise;
 			if (!queue.length) break; // Promise broken, stop work
 			do { const [func, arg, millis] = queue.shift();
+				if (millis) await pause(millis);
 				try { result = await func(arg, result); // On await (even if nothing to wait) main thread is free for next task in event loop (e.g. add more functions to queue)
-					if (millis) await pause(millis);
 				} catch (error) { console.error(error, func, arg); result=null; }
 			} while (queue.length);
 			queueNotEmptyPromise = new Promise( (resolve)=>{notifyWorker=resolve;} );
@@ -29,11 +29,11 @@ function MakeAsyncQueue (name, seedResult) {
 		console.log("queueWorker() for "+name+" done.");
 	}
 	queueWorker();
-	// TODO #48f9a725 Test garbage collection of function closures: queueWorker keeps running/awaiting when out of scope. 
+	// TODO #48f9a725 Test garbage collection: queueWorker keeps running/awaiting when out of scope. 
 	
 	return { // "public methods"
-		push: (func, arg, thenPauseMillis) => {
-			queue.push( [func, arg, thenPauseMillis] );
+		push: (func, arg, pauseMillis) => {
+			queue.push( [func, arg, pauseMillis] );
 			if (queue.length==1) notifyWorker(); // Was ==0 and worker awaiting queueNotEmptyPromise
 		},
 		len: () => queue.length,
@@ -46,10 +46,9 @@ function MakeAsyncQueue (name, seedResult) {
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 // Always use *** await pause(111) ***   Else perhaps no pause. 
-async function pause(millis) { return new Promise( (r) => setTimeout(()=>r(),millis) ); }
+async function pause(millis) { return new Promise( reslv => setTimeout(reslv, millis) ); }
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-// Not safe: // async function pause(millis) { await new Promise((r)=>setTimeout(()=>r(),millis)); }
 
 
 
