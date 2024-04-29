@@ -31,7 +31,7 @@ function onMessage(evt) {
 	const [T, longId, shortId, numMsgs, flag] = first.split("&",5);
 	// leading "*" / "+" sticks at T  // if nonempty, flag determines special color:  #2fa32174
 
-	// Some copy pasta spaghetti for better performance
+	// Some copy pasta spaghetti for better performance, some due to laziness
 	switch ( srvrMsg.at(0) ) {
 		case "*":
 			//COPYPASTE #5435c2b0 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -171,54 +171,44 @@ function onMessage(evt) {
 					countNonLogMsg();
 					msgOutput(srvrMsg, "S", "cmd");
 					return;
-//				case "%GUI_A":
-//					
-//					return;
 				case "%T0CORR":
 					GUIworkQueue.push( T0corrFromSrvr, srvrMsg.substring(8).split(" ",6));
 					countNonLogMsg();
 					msgOutput(srvrMsg, "S", "cmd");
 					return;
-				case "%":
+				case "%%":
 					// general feedback/comment from other client:
 					msgOutput(srvrMsg, "D");
 					return;
+
+				case "%!ERROR":
+				case "%/ERROR":
+					msgOutput(srvrMsg, "E");
+					return;
+				
+				case "%!ALERT_B": //Short extra message in the alert window
+				case "%/ALERT_B": 
+					alertBlue(srvrMsg); //TODO? Scroll to log
+					return;
+				case "%!ALERT_R":
+				case "%/ALERT_R":
+					alertRed(srvrMsg);
+					return;
+							
+				case "%!": // general feedback:
+				case "%/":
+					msgOutput(srvrMsg.substring(2), srvrMsg.at(1)=="/"?"L":"S");
+					return;
 					
 				default:
-					errMsgOutput("UNKNOWN CLIENT COMMAND", srvrMsg, "E");
+					errMsgOutput("UNKNOWN COMMAND", srvrMsg, "E");
 					return;
-			}
-			
-		case "!":
-			break;	
-		case "/":
-			break;
-			
+			} //switch ( first )
+
 		default:
 			errMsgOutput("PREFIX CHAR ERROR", srvrMsg, "E");
 			return;
 	} // END switch ( srvrMsg.at(0) )
-
-	switch ( first.substring(1 )) {
-		case "ERROR":
-			msgOutput(srvrMsg, "E");
-			return;
-
-		case "ALERT_B": //Short extra message in the alert window
-			alertBlue(srvrMsg); //TODO? Scroll to log
-			return;
-		case "ALERT_R":
-			alertRed(srvrMsg);
-			return;
-			
-		case "": // general feedback:
-			msgOutput(srvrMsg.substring(2), srvrMsg.at(0)=="/"?"L":"S");
-			return;
-	}
-	
-	errMsgOutput("UNKNOWN COMMAND", srvrMsg, "E");
-
-	return;
 }
 //---
 function countNonLogMsg() {

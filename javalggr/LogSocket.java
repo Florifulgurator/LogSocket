@@ -144,7 +144,7 @@ static public void onMessage(String msg, Session sess) {
 
 	case "/PING":
 		try {
-			websocket.sendText("/PING LogSocket /"+Nr+" using javax.websocket is alive! "
+			websocket.sendText("%/ LogSocket /"+Nr+" using javax.websocket is alive! "
 				+numLggrs+" loggers created in realms "
 				+realm2labelsCode2LggrRefRcrdList.keySet().stream().collect(Collectors.joining(", "))
 			);
@@ -158,7 +158,7 @@ static public void onMessage(String msg, Session sess) {
 		System.gc();
 		return;
 
-	case "/FILTER1_ADD":
+	case "/FLTR_ADD":
 		for( String ruleStr : blankPttrn.split(cmd[1]) ) {
 			try {
 				Filter.applyRule( Filter.parseRuleString(ruleStr) );
@@ -175,15 +175,15 @@ static public void onMessage(String msg, Session sess) {
 			cft = shortId2CFuture.get(spl[0]).get();
 			shortId2CFuture.put(spl[0], Optional.empty());
 			if ( cft!=null ) {
-				if ( cft.isDone() ) LogSocket.sendMsg("/ALERT_R Button click:<br/>CompletableFuture.isDone() already");
+				if ( cft.isDone() ) LogSocket.sendMsg("%/ALERT_R Button click:<br/>CompletableFuture.isDone() already");
 				else cft.complete(spl[1]);
 			}
 		} catch  (Exception e) {
 			complain("LogSocket_ERROR_19: "+e.getClass().getName()+" "+e.getMessage()+" msg="+msg);
-			LogSocket.sendMsg("/ALERT_R Button click:<br/>"+e.getClass().getName());
+			LogSocket.sendMsg("%/ALERT_R Button click:<br/>"+e.getClass().getName());
 			return;
 		}
-		if ( cft==null ) LogSocket.sendMsg("/ALERT_R Button click:<br/>CompletableFuture is null!");
+		if ( cft==null ) LogSocket.sendMsg("%/ALERT_R Button click:<br/>CompletableFuture is null!");
 		return;
 
 	}
@@ -444,7 +444,7 @@ static void releaseLogBuffer() {
 protected static void complain(String txt) { //TODO JavaScript
 	System.err.println("!!-- "+txt);
 	try {
-		websocket.sendText("/ERROR /"+Nr+" "+txt);
+		websocket.sendText("%/ERROR /"+Nr+" "+txt);
 	} catch (IOException e) { // Maybe that was the reason for the complaint
 		shutDown = true; isOpen = false;
 	}

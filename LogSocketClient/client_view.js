@@ -395,7 +395,7 @@ function setSessID(s) {
 		throw('SessionID error');
 	} else {
 		sessionID = s;
-		document.getElementById("sessID").innerHTML = "%"+s;
+		document.getElementById("sessID").innerHTML = s;
 		alertBlue("... connected.");
 	}
 }

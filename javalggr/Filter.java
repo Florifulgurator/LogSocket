@@ -139,7 +139,7 @@ static void applyRule(RuleLR ruleLR) { //DEV #23e526a3  //DEV #6cb5e491
 //DEV
 	if ( true || ruleLR.realm==null || ruleLR.labels==null || ruleLR.labels.length!=1 ) {//All realms || all labels || more than 1 label
 		LogSocket.complain("TODO #6776bf39 filter1 rule="+ruleLR);
-		LogSocket.sendMsg("/ALERT_R TODO #6776bf39 Filter:<br/>"+escapeHTML(ruleLR.toString()));
+		LogSocket.sendMsg("%/ALERT_R TODO #6776bf39 Filter:<br/>"+escapeHTML(ruleLR.toString()));
 		return;
 	}
 	
@@ -154,7 +154,7 @@ static void applyRule(RuleLR ruleLR) { //DEV #23e526a3  //DEV #6cb5e491
 		
 		ArrayList<Tuple<Integer,WeakReference<Lggr>>> lggrList = LogSocket.realmLabel2LggrList.get(rlmLbl);
 		if (lggrList==null) {
-			LogSocket.sendMsg("/ALERT_B Filter:<br/>No active loggers found.");
+			LogSocket.sendMsg("%/ALERT_B Filter:<br/>No active loggers found.");
 			return;
 		}
 		
@@ -180,7 +180,7 @@ static void applyRule(RuleLR ruleLR) { //DEV #23e526a3  //DEV #6cb5e491
 			LogSocket.websocket.sendText(cmd+cmdArgs );
 			LogSocket.websocket.sendText("/ "+"LogSocket /"+LogSocket.Nr+": Filter rule \""+rule+"\" stopped "+fltrdNum+" logger instance"+(fltrdNum==1?"":"s")
 				                   +" - "+alreadyfltrdNum+" already stopped, "+goneNum+" gone." );
-			LogSocket.sendMsg("/ALERT_B Filter: Stopped "+fltrdNum+"<br/>"+alreadyfltrdNum+" already stopped, "+goneNum+" gone.");
+			LogSocket.sendMsg("%/ALERT_B Filter: Stopped "+fltrdNum+"<br/>"+alreadyfltrdNum+" already stopped, "+goneNum+" gone.");
 			//TODO #7594d994 client consistency test
 		} catch (IOException e) {
 			System.err.println("!!!- LogSocket_ERROR_X Filter.applyRule (TODO) "+e.getMessage());

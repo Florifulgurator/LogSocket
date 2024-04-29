@@ -95,9 +95,8 @@ function contextMenu3(ev) {
 //---
 function _ctxMn3radio(value) { cntxtMenuData.reslt=value; document.getElementById("ctxMn3fltrResID").innerHTML = `=${cntxtMenuData.reslt}`; }
 //---
-function _stopLggr() { //DEV #23e526a3
-
-	doSend(`/FILTER ${cntxtMenuData.rule.toString()}=${cntxtMenuData.reslt}`);
+function _addFltrRl() { //DEV #23e526a3
+	doSend(`/FLTR_ADD ${cntxtMenuData.rule.toString()}=${cntxtMenuData.reslt}`);
 	hideContextMenus();
 }
 

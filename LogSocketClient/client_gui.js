@@ -143,7 +143,7 @@ function toggleDrpdwnDspl(winEl) {
 function _search()      { if( searchEl.value.length>1 ) highlight(searchEl.value.substring(0,MAX_SRCHTXTLEN)); }
 
 function _garbageColl()    { doSend("!GC"); if(window.gc) window.gc(); }
-function _comment()        { doSend("!REM "+textID.value); }
+function _comment()        { doSend("%% Client "+sessionID+" says: "+textID.value); }
 function _pingLogSockets() { doSend("/PING"); }
 function _caseSensi()      { caseSensitive = document.getElementById("caseID").checked; }
 function _cmdGC()          { cmdGC = document.getElementById("cmdGCID").checked; }

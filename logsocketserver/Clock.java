@@ -65,7 +65,7 @@ public static class SyncDaemon {
 		final int PAR1=200; final int PAR2=170;	final double PAR3=0.7;
 		
 		if (T0correction_started) {
-			LogSocketServer.sendText(sess, "! T0correction("+shortClObjID(s)+") already started");
+			LogSocketServer.sendText(sess, "%! T0correction("+shortClObjID(s)+") already started");
 			return;
 		}
 		System.out.println(".... starting T0correction("+shortClObjID(s)+")");
@@ -84,7 +84,7 @@ LogSocketServer.exctrService.execute( () -> { // >>>>>>>>>>>>>>>>>>
 		cfuture.cancel(true);
 		T0correction_started = false;
 		System.err.println("!!!. LogSocketServer.Clock: T0correction("+shortClObjID(sess)+") not even started");
-		LogSocketServer.sendText(sess, "!ERROR 18 LogSocketServer.Clock: T0correction("+shortClObjID(s)+") not even started");
+		LogSocketServer.sendText(sess, "%!ERROR 18 LogSocketServer.Clock: T0correction("+shortClObjID(s)+") not even started");
 		System.out.println("==== T0correction thread END1");//DIAGN
 		return;
 	};
@@ -239,7 +239,7 @@ LogSocketServer.exctrService.execute( () -> { // >>>>>>>>>>>>>>>>>>
 						stopped[0]=true;
 						break;
 					} else {
-						LogSocketServer.sendText(sess, "!ERROR 20 LogSocketServer.Clock: tingtongReceiver exception: "+e.getClass().getName()+" message: "+ e.getMessage());
+						LogSocketServer.sendText(sess, "%!ERROR 20 LogSocketServer.Clock: tingtongReceiver exception: "+e.getClass().getName()+" message: "+ e.getMessage());
 						System.err.println("!!!. tingtongReceiver exception "+e.getClass().getName()+" message: "+ e.getMessage());
 						break;
 						// ??! #2ebbea73-->

@@ -127,7 +127,7 @@ public class Lggr {
 
 	public void microTimerClear(int maxTicks, int warmupTicks) {
 		if (maxTicks<=0) {
-			LogSocket.sendCmd(this, "/ERROR microTimerClear("+maxTicks+","+warmupTicks+")");
+			LogSocket.sendCmd(this, "%/ERROR microTimerClear("+maxTicks+","+warmupTicks+")");
 			maxTicks = 0; warmupTicks = 0;
 		}
 		microTimerTickDiffs = new long[maxTicks];

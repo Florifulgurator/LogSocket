@@ -117,13 +117,13 @@ function onMessage(evt) {
 		return;
 
 	case "/PING":
-		websocket.send("/ PING LogSocket /"+Nr+" is alive! "+numLggrs+" loggers created."); // TODO #495e57b8
+		websocket.send("%/ LogSocket /"+Nr+" is alive! "+numLggrs+" loggers created."); // TODO #495e57b8
 		return;
 
 	case "/GC":
 		// TODO consistency check: arg==LogSocket.Nr ?
 		if (!window.gc) {
-			websocket.send("/ GC LogSocket /"+Nr+": Garbage collection function window.gc() missing: Start Chrome with --js-flags=\"--expose-gc\" ?");
+			websocket.send("%/ LogSocket.js /"+Nr+": Garbage collection function window.gc() missing: Start Chrome with --js-flags=\"--expose-gc\" ?");
 		} else {
 			window.gc();
 		}
@@ -144,7 +144,7 @@ function onMessage(evt) {
 			shortId2PromiseRslv.set(spl[0], null);
 			reslv(spl[1]);
 		}
-		else  websocket.send("/ALERT_R Button click:<br/>Promise is null!");
+		else  websocket.send("%/ALERT_R Button click:<br/>Promise is null!");
 		return;
 				
 	}
@@ -280,7 +280,7 @@ function releaseLogBuffer() {
 function complain(txt) {
 	console.error("!!-- "+txt);
 	try {
-		websocket.send("/ERROR /"+Nr+" "+txt);
+		websocket.send("%/ERROR /"+Nr+" "+txt);
 	} catch (e) {
 		// Maybe that was the reason for the complaint
 	}
@@ -388,7 +388,7 @@ function filter1_applyRule(realmLabel) {
 	
 	if ( cmdArgs!="" ) {
 		websocket.send("!STOPPED"+cmdArgs );
-		websocket.send("/ "+"LogSocket /"+Nr+": Filter rule \""+realmLabel+"\" stopped "+stopped+" logger instance"+(stopped==1?"":"s")
+		websocket.send("%/ LogSocket /"+Nr+": Filter rule \""+realmLabel+"\" stopped "+stopped+" logger instance"+(stopped==1?"":"s")
 	                +" - "+alreadystopped+" already stopped, "+gone+" gone." );
 		//TODO #7594d994 client consistency test
 	}
