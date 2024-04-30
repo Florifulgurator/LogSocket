@@ -16,12 +16,12 @@
 		const TESTurls = ["http://localhost:8081/logsocketTEST/TEST.jsp", "./index.jsp"];
 	</script>
 	
+	<script defer type="text/javascript" src="client_init.js"></script><!-- Some DOCU/remarks in client_init.js -->
 	<script defer type="text/javascript" src="client_lib.js"></script>
+	<script defer type="text/javascript" src="client_gui_lib.js"></script>
 	<script defer type="text/javascript" src="client_filter.js"></script>
 	<script defer type="text/javascript" src="client_clock.js"></script>
 	<script defer type="text/javascript" src="client_TEST.js"></script>
-	<script defer type="text/javascript" src="client_init.js"></script><!-- Some DOCU/remarks in client_init.js -->
-	<script defer type="text/javascript" src="client_gui_lib.js"></script>
 	<script defer type="text/javascript" src="client_gui.js"></script>
 	<script defer type="text/javascript" src="client_view.js"></script>
 	<script defer type="text/javascript" src="client_selection.js"></script>	
@@ -106,8 +106,13 @@ Top right buttons: Stackable dropdown menus.
 				<!-- [JS] -->
 			</tbody>
 		</table>
+		<span class="fgDisco">Legend:</span>
+		<span class="mnspcd nobr">
+			<span class="gc lg"><span class="">fin</span><span class="gc sil lg">ali</span><span class="gc ign lg">zed</span></span> 
+			<span class="sil lg">silenced</span>
+			<span class="ign lg">ignored</span>
+		</span>
 		<input type="button" class="smallbtn" id="cleanLggrListBtn" onclick="_cleanupDltdLggrs()" value="Cleanup all"/>
-<!-- 	DEV			<span class="smallbtn" id="cleanLggrListBtn" onclick="_cleanupDltdLggrs()">Cleanup all</span> -->
 		
 <!-- 		<span class="fgDisco">All messages count:</span> <span id="logMsgNumID" class="mnspcd">[JS] TODO</span> -->
 	</div>
@@ -115,12 +120,6 @@ Top right buttons: Stackable dropdown menus.
 	
 	<div class="lggrWinSection" id="fltrSctnDIV">
  		<span class="fgDisco nobr"><span class="bold">Global logger filter:</span> Realm | Label(s) </span><!-- //DEV #6cb5e491 -->
-<!-- 		<table class="lggrTbl">
-			<tbody id="filter1LstID">
-				[JS]
-			</tbody>
-		</table>
- -->
  		<div id="filter1LstID"><!-- [JS] --></div>	
  	</div> 
 

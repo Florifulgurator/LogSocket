@@ -78,7 +78,7 @@ input[type="radio"] {cursor: pointer;}
 /* Loggers header/ dropdown window  >>>>>>>>>>>>>>>>>>>>>>>> */
 
 #loggersID {
-	resize: vertical; /* can break some things */
+	resize: both; /* vertical;*/ /* can break some things */
 	background-color: var(--btnWBg);
 	padding: 0.1rem 0.3rem;
 	font-size: smaller;

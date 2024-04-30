@@ -172,7 +172,7 @@ static void applyRule2lggrs(RuleLR ruleLR) { //DEV #23e526a3 #6cb5e491
 	try {
 		if (joiner.length()!=0) LogSocket.websocket.sendText(joiner.toString());
 		
-		LogSocket.websocket.sendText("%DIAGN "+"LogSocket /"+LogSocket.Nr+": Filter rule \""+ruleLR.toRuleRStr()
+		LogSocket.websocket.sendText("%/DIAGN "+"LogSocket /"+LogSocket.Nr+": Filter rule \""+ruleLR.toRuleRStr()
 			+"\" stopped "+DIAGNfltrdNum[0]+" logger instance"+(DIAGNfltrdNum[0]==1?"":"s")
 			+" - "+DIAGNalreadyfltrdNum[0]+" already stopped, "+DIAGNgoneNum[0]+" gone."
 		);
@@ -209,7 +209,7 @@ static final Function<StringJoiner, Consumer<LogSocket.LggrRefRcrd>> consumerE =
 
 static final Map<String, Function<StringJoiner, Consumer<LogSocket.LggrRefRcrd>>> ruleResult2foreach = Map.of("M", consumerM, "E", consumerE);
 
-static final Map<String, String> ruleResult2cmd = Map.of("M", "!SILENCED", "E", "%IGNORED");
+static final Map<String, String> ruleResult2cmd = Map.of("M", "!SILENCED ", "E", "%IGNORED ");
 
 
 
