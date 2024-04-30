@@ -1,9 +1,16 @@
 package florifulgurator.logsocket.javalggr;
 
 import static florifulgurator.logsocket.utils.MGutils.*;
+
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Set;
+import java.util.StringJoiner;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -14,11 +21,11 @@ public class Filter {
 
 public static record RuleLR(String realm, String[] labels, long labelsCode, String result) {
 	public String toRuleRStr() {
-		return (realm==null?"*":realm) + ">" + (labels==null?"*":Arrays.stream(labels).collect(Collectors.joining("&")))
+		return realm + ">" + (labels==null?"*":Arrays.stream(labels).collect(Collectors.joining("&")))
 	           + "=" + result;
 	}
 	public String toRuleStr() {
-		return (realm==null?"":realm) + (labels==null?"":Arrays.stream(labels).collect(Collectors.joining("")) );
+		return realm + (labels==null?"":Arrays.stream(labels).collect(Collectors.joining("")) );
 	}
 	public String toString() { //DIAGN
 		return this.toRuleRStr()+" labelsCode="+Long.toBinaryString(labelsCode);
@@ -32,13 +39,6 @@ static Map<String, Map<Long, String>> realm2labelsCode2RuleResult = new Concurre
 
 
 
-
-//https://stackoverflow.com/a/39506822/3123382
-//Benchmark                    Mode  Cnt  Score    Error  Units
-//MyBenchmark.hasMap_get       avgt    5  0.015 ?  0.001   s/op
-//MyBenchmark.hashMap_put      avgt    5  0.029 ?  0.004   s/op
-//MyBenchmark.skipListMap_get  avgt    5  0.312 ?  0.014   s/op
-//MyBenchmark.skipList_put     avgt    5  0.351 ?  0.007   s/op
 
 // DOCU #1c887880 Rule string syntax:
 // realm>#label1#label12&#label3=M  // #label1#label12 treated as one label. "M" ignore *M*essages, but track existence and make ID
@@ -71,13 +71,14 @@ static RuleLR parseRuleString(String ruleRStr) throws FilterError {
 		if (ruleRStr.charAt(a+1)!='#') throw new FilterError("parseRuleString("+ruleRStr+") Error4");
 		lblL = ruleRStr.substring(a+1, b).split("&");
 		Arrays.sort(lblL);
-		labelsCode = registerLabels( Arrays.stream(lblL) );
+		labelsCode = registerLabels( Arrays.stream(lblL).map( s->s.substring(1) ) );
 	}
 
 	// New rule:
 	String result = ruleRStr.substring(b+1);
+	String realm = ruleRStr.substring(0, a);
 	RuleLR ruleLR = new RuleLR(
-		(a==1&&ruleRStr.charAt(1)=='*') ? null : ruleRStr.substring(0, a-1),
+		realm,
 		lblL,
 		labelsCode,
 		result
@@ -98,10 +99,9 @@ static RuleLR parseRuleString(String ruleRStr) throws FilterError {
 	return ruleLR;
 }
 
-
 // DOCU #681a8b4e long integer labelsCode
 // There can be max. 63 sub-labels per LogSocket. Each new sub-label gets assigned a bit.
-// The order of the sub-labels in the labels string assigned to a logger will not be
+// The order of the sub-labels in the labels string in a logger longId will not be
 // changed, but for filtering the labels string is represented by the bit pattern
 // given by OR-ing the label bits in a long integer.
 // If zero it means "*" in the rule String.
@@ -131,63 +131,91 @@ public static long registerLabels(Stream<String> labelsStream) {
 
 
 
-
-
-
 // Apply rule to existing lggrs
-static void applyRule(RuleLR ruleLR) { //DEV #23e526a3  //DEV #6cb5e491
-//DEV
-	if ( true || ruleLR.realm==null || ruleLR.labels==null || ruleLR.labels.length!=1 ) {//All realms || all labels || more than 1 label
+static void applyRule2lggrs(RuleLR ruleLR) { //DEV #23e526a3 #6cb5e491
+
+	if ( ruleLR.labels==null ) {
 		LogSocket.complain("TODO #6776bf39 filter1 rule="+ruleLR);
 		LogSocket.sendMsg("%/ALERT_R TODO #6776bf39 Filter:<br/>"+escapeHTML(ruleLR.toString()));
 		return;
 	}
 	
-	String cmdArgs="";
-	int goneNum=0, fltrdNum=0, alreadyfltrdNum=0;
-	boolean ignore = "E".equals(ruleLR.result);
-	
-/*	
-	synchronized(LogSocket.realmLabel2LggrList) {
-		String rlmLbl = rule.realm+rule.labels[0];
-		LogSocket.filteredRealmLabel.put(rlmLbl, rule.result);
-		
-		ArrayList<Tuple<Integer,WeakReference<Lggr>>> lggrList = LogSocket.realmLabel2LggrList.get(rlmLbl);
-		if (lggrList==null) {
-			LogSocket.sendMsg("%/ALERT_B Filter:<br/>No active loggers found.");
-			return;
-		}
-		
-		for (Tuple<Integer,WeakReference<Lggr>> tpl : lggrList) {
-			Lggr l = tpl.t2.get();
-			if ( l!=null ) {
-				if ( l.on ) {
-					l.on=false;
-					l.ignore = ignore;
-					fltrdNum++;
-				} else {
-					alreadyfltrdNum++;
-				}
-				cmdArgs += " "+l.shortId;
+	Set<String> realms = null;
+	if ( ruleLR.realm=="*" ) {
+		 realms = LogSocket.realm2labelsCode2LggrRefRcrdList.keySet();
+		 if (realms.isEmpty()) return;
+	} else {
+		realms = Set.of(ruleLR.realm);
+	}
 
-			} else goneNum++;
-		}
-	}
+	Function<StringJoiner, Consumer<LogSocket.LggrRefRcrd>> foreach = ruleResult2foreach.get(ruleLR.result);
+	StringJoiner joiner = new StringJoiner(" ", ruleResult2cmd.get(ruleLR.result), "");
+	joiner.setEmptyValue("");
+	DIAGNfltrdNum[0]=0;
+	DIAGNalreadyfltrdNum[0]=0;
+	DIAGNgoneNum[0]=0;
+
+	realms.forEach( realm -> {
+		Map<Long, ArrayList<LogSocket.LggrRefRcrd>> labelsCode2lggrRefRcrdList  =  LogSocket.realm2labelsCode2LggrRefRcrdList.get(realm);
+		labelsCode2lggrRefRcrdList.keySet().forEach( labelsCode -> {
+			if ( (labelsCode & ruleLR.labelsCode) == ruleLR.labelsCode ) {
+				ArrayList<LogSocket.LggrRefRcrd> lggrRefRcrdList = labelsCode2lggrRefRcrdList.get(labelsCode);
+				if (!lggrRefRcrdList.isEmpty()) {
+					synchronized (lggrRefRcrdList) {
+						lggrRefRcrdList.forEach( foreach.apply(joiner) );
+					}
+				}
+			}
+		});
+	});
+	
+	try {
+		if (joiner.length()!=0) LogSocket.websocket.sendText(joiner.toString());
 		
-	if (!cmdArgs.isEmpty()) {
-		String cmd = ignore?"!IGNORED":"!SILENCED";
-		try {
-			LogSocket.websocket.sendText(cmd+cmdArgs );
-			LogSocket.websocket.sendText("/ "+"LogSocket /"+LogSocket.Nr+": Filter rule \""+rule+"\" stopped "+fltrdNum+" logger instance"+(fltrdNum==1?"":"s")
-				                   +" - "+alreadyfltrdNum+" already stopped, "+goneNum+" gone." );
-			LogSocket.sendMsg("%/ALERT_B Filter: Stopped "+fltrdNum+"<br/>"+alreadyfltrdNum+" already stopped, "+goneNum+" gone.");
+		LogSocket.websocket.sendText("%DIAGN "+"LogSocket /"+LogSocket.Nr+": Filter rule \""+ruleLR.toRuleRStr()
+			+"\" stopped "+DIAGNfltrdNum[0]+" logger instance"+(DIAGNfltrdNum[0]==1?"":"s")
+			+" - "+DIAGNalreadyfltrdNum[0]+" already stopped, "+DIAGNgoneNum[0]+" gone."
+		);
+		LogSocket.sendMsg("%/ALERT_B Filter: Stopped "+DIAGNfltrdNum[0]
+			+((DIAGNalreadyfltrdNum[0]!=0) ? "<br/>"+DIAGNalreadyfltrdNum[0]+" already stopped." : "")
+		);
 			//TODO #7594d994 client consistency test
-		} catch (IOException e) {
+
+	} catch (IOException e) {
 			System.err.println("!!!- LogSocket_ERROR_X Filter.applyRule (TODO) "+e.getMessage());
-		}
 	}
-*/
 }
+//---
+
+static int[] DIAGNfltrdNum = {0};
+static int[] DIAGNalreadyfltrdNum = {0};
+static int[] DIAGNgoneNum = {0};
+
+static final Function<StringJoiner, Consumer<LogSocket.LggrRefRcrd>> consumerM = joiner -> rcrd -> {
+	Lggr l = rcrd.wref().get();
+	if ( l!=null ) {
+		if ( l.on ) {
+			l.on=false;  rcrd.ignr()[0]=false;
+			DIAGNfltrdNum[0]++;
+		} else {
+			DIAGNalreadyfltrdNum[0]++;
+		}
+		joiner.add(l.shortId);
+
+	} else DIAGNgoneNum[0]++;
+};
+
+static final Function<StringJoiner, Consumer<LogSocket.LggrRefRcrd>> consumerE = joiner -> rcrd -> System.out.println("TODO filter E "+rcrd);
+
+static final Map<String, Function<StringJoiner, Consumer<LogSocket.LggrRefRcrd>>> ruleResult2foreach = Map.of("M", consumerM, "E", consumerE);
+
+static final Map<String, String> ruleResult2cmd = Map.of("M", "!SILENCED", "E", "%IGNORED");
+
+
+
+
+
+
 
 
 

@@ -120,7 +120,11 @@ public static void onClose(Session sess, Integer statuscode, String reason) {
 }
 
 public static void onError(Session sess, Throwable thrbl) {
-	System.err.println("---- LogSocket: onError LogSocket /"+Nr+" Session="+shortClObjID(sess)+" Throwable.getMessage()="+thrbl.getMessage());	
+	System.err.println("---- LogSocket: onError LogSocket /"+Nr+" Session="+shortClObjID(sess)
+		+" Throwable.getMessage()="+thrbl.getMessage()
+		+" ...toString()="+thrbl.toString()
+		+ ( (thrbl.getCause()==null) ? "...getCause()=null" : "...getCause().toString()="+thrbl.getCause().toString() )
+	);	
 }
 
 static public void onMessage(String msg, Session sess) {
@@ -159,9 +163,10 @@ static public void onMessage(String msg, Session sess) {
 		return;
 
 	case "/FLTR_ADD":
+		System.out.println(msg);//DIAGN
 		for( String ruleStr : blankPttrn.split(cmd[1]) ) {
 			try {
-				Filter.applyRule( Filter.parseRuleString(ruleStr) );
+				Filter.applyRule2lggrs( Filter.parseRuleString(ruleStr) );
 			} catch(FilterError e) {
 				complain("LogSocket_ERROR_17: "+e.getMessage());
 			}
@@ -234,29 +239,14 @@ public static synchronized Lggr newLggr(String realm, String label, String comme
 	}
 	// ----------------------
 	
-	long labelsCode = Filter.registerLabels( Arrays.stream(checkedLabel.split("#")).skip(1) );
 
-	ArrayList<LggrRefRcrd> lggrRefRcrdList = null;
-	
-	Map<Long, ArrayList<LggrRefRcrd>> labelsCode2LggrRefRcrdList = realm2labelsCode2LggrRefRcrdList.get(checkedRealm);
-	
-	if (null==labelsCode2LggrRefRcrdList) {
-		labelsCode2LggrRefRcrdList =  new ConcurrentHashMap<>();
-		lggrRefRcrdList = new ArrayList<>();
-		realm2labelsCode2LggrRefRcrdList.put(checkedRealm, labelsCode2LggrRefRcrdList);
-		labelsCode2LggrRefRcrdList.put(labelsCode, lggrRefRcrdList);
-	} else {
-		lggrRefRcrdList = labelsCode2LggrRefRcrdList.get(labelsCode);
-		if (null==lggrRefRcrdList) {
-			lggrRefRcrdList = new ArrayList<>();
-			labelsCode2LggrRefRcrdList.put(labelsCode, lggrRefRcrdList);
-		}
-	}
-	
 	// Duplicate?
 	Integer lastLggrN2 = realmLabel2lastLggrN2.get(checkedRealmLabel);
 	int n2 = lastLggrN2==null ? 0 : lastLggrN2+1;
 	realmLabel2lastLggrN2.put(checkedRealmLabel, n2);
+
+
+	long labelsCode = Filter.registerLabels( Arrays.stream(checkedLabel.split("#")).skip(1) );
 
 	Lggr newLggr = new Lggr(
 			checkedRealm, checkedLabel,
@@ -264,15 +254,34 @@ public static synchronized Lggr newLggr(String realm, String label, String comme
 			labelsCode,
 			( comment = comment.trim()+( checkedRealmLabel.equals(realm+label) ? "" : " [REAL/LABEL CORRECTED]" ) ),
 			++numLggrs
-			);
+	);
 	newLggr.on = !"M".equals(filtered); //DOCU filter1 //DEV #6cb5e491
 
 	LggrRefRcrd lRR = new LggrRefRcrd(checkedRealmLabel+";"+n2, numLggrs, new boolean[]{true}, new WeakReference<>(newLggr));
-	newLggr.lggrRefRcrd = lRR;
+	newLggr.lggrRefRcrd = lRR;  // #longIdX
 
-	synchronized (lggrRefRcrdList) {
-		lggrRefRcrdList.add(lRR); // #longIdX
+	// Add to data structure for filter:
+	ArrayList<LggrRefRcrd> lggrRefRcrdList = null;
+	Map<Long, ArrayList<LggrRefRcrd>> labelsCode2LggrRefRcrdList = realm2labelsCode2LggrRefRcrdList.get(checkedRealm);
+	if (null==labelsCode2LggrRefRcrdList) {
+		labelsCode2LggrRefRcrdList =  new ConcurrentHashMap<>();
+		lggrRefRcrdList = new ArrayList<>();
+		lggrRefRcrdList.add(lRR);
+		realm2labelsCode2LggrRefRcrdList.put(checkedRealm, labelsCode2LggrRefRcrdList);
+		labelsCode2LggrRefRcrdList.put(labelsCode, lggrRefRcrdList);
+	} else {
+		lggrRefRcrdList = labelsCode2LggrRefRcrdList.get(labelsCode);
+		if (null==lggrRefRcrdList) {
+			lggrRefRcrdList = new ArrayList<>();
+			lggrRefRcrdList.add(lRR);
+			labelsCode2LggrRefRcrdList.put(labelsCode, lggrRefRcrdList);
+		} else {
+			synchronized (lggrRefRcrdList) {
+				lggrRefRcrdList.add(lRR);
+			}
+		}
 	}
+	
 
 	if (Nr==null) { // E.g. websocket not yet ready
 		nrBuffer.add(newLggr);
@@ -280,7 +289,6 @@ public static synchronized Lggr newLggr(String realm, String label, String comme
 	} else {  // Since Nr exists, websocket works (except glitch)
 		makeKnown(newLggr);
 	}
-
 
 	System.out.println("newLggr on="+newLggr.on+" ignore="+newLggr.ignore+" "+Long.toBinaryString(labelsCode)
 		+" "+realm+" "+label+" "+comment
@@ -295,7 +303,7 @@ static {
 	exctrService.execute( () -> {
 		System.out.println("==== WeakRef cleanup daemon running...");
 		ArrayList<LggrRefRcrd>      qEl;
-		Set<ArrayList<LggrRefRcrd>> qElSet = new HashSet<>(); //TODO more performant implementation of Set
+		Set<ArrayList<LggrRefRcrd>> qElSet = new HashSet<>(); //TODO best performant implementation of Set
 		ArrayList<String>           cmdArgList = new ArrayList<>();
 		String DIAGNmsg[] = {""};
 
@@ -449,6 +457,14 @@ protected static void complain(String txt) { //TODO JavaScript
 		shutDown = true; isOpen = false;
 	}
 }
+protected static void diagn(String txt) { //TODO JavaScript
+	System.out.println("==== "+txt);
+	try {
+		websocket.sendText("%/DIAGN /"+Nr+" "+txt);
+	} catch (IOException e) { // Maybe that was the reason for the complaint
+		shutDown = true; isOpen = false;
+	}
+}
 
 // Logging services: >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -497,7 +513,8 @@ public static CompletableFuture<String> logCFtr(Lggr lgr, String msg) {
 		try {
 			websocket.sendText( '+'+lgr.longId+"&"+lgr.shortId+"&"+(++lgr.numMsgs)+flag2Str[3]+lineBrkPttrn.split(msg, 2)[0]+"\n/CFT "+lgr.shortId );
 			// Here (not elswhere) we make sure there are no \n in msg
-			// /CFT ... is the command used in client response
+			// /CFT ... is the command used in client response, which adds the HTML value of the clicked button
+
 		} catch (Exception e) {
 			System.err.println("!!!- LogSocket_ERROR_4 (TODO) "+e.getMessage());
 			shutDown = true; isOpen = false;

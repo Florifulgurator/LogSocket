@@ -51,7 +51,7 @@ public class LogSocketServer implements ServletContextListener  {
 	public void contextDestroyed(ServletContextEvent sce) { 
 		exctrService.shutdownNow(); // Tomcat can't shut down ExecutorService:
 		
-		if (saveFilter1) { //TODO #7f344280
+		if (saveFilter1) { //TODO #7f344280 //DEV #23e526a3 #6cb5e491
 			props.setProperty( "filter1", filter1.stream().collect(Collectors.joining(" ")) );
 			try { props.store(new FileWriter(rootPath+"LogSocketServer.properties"), null); }
 			catch (IOException e) {	System.err.println("!!!! LogSocketServer.properties likely not saved. Exception: "+e.getClass().getName()+" "+e.getMessage()); }
@@ -76,7 +76,7 @@ public static Boolean	                  hasListeners = false;
 public static Queue<String>               srvrBuffer = new ConcurrentLinkedQueue<>();
 
 private static LinkedHashSet<String>      filter1 = new LinkedHashSet<>(); // insertion order to keep things tidy //DEV #6cb5e491
-private static boolean                    saveFilter1 = true;
+private static boolean                    saveFilter1 = false;
 
 public static Map<String, Long>           timersStartT = new ConcurrentHashMap<>(20); //Clock.T()
 public static Map<String, String>         timersDT = new ConcurrentHashMap<>(20); // DT in ms as String
@@ -148,7 +148,7 @@ public void onClose(Session sess, CloseReason reason) throws Exception {
 		
 	} else {
 		if ( lstnrSssns.remove(sess) ) {
-			sendMsgToAllListeners("%! @OnClose: listener "+getSessIdDec(sess)+" "+shortClObjID(sess)+" gone.", false );
+			sendMsgToAllListeners("%! @OnClose: listener "+getSessIdDec(sess)+" "+shortClObjID(sess)+" gone.", true );
 			if ( lstnrSssns.isEmpty() ) hasListeners = false;
 			
 		} else {
@@ -388,7 +388,7 @@ srvrCommands.put("!GC", new SrvrCmd() { synchronized public void exec(Session se
 // ---
 srvrCommands.put("/CFT", new SrvrCmd() { synchronized public void exec(Session sess, String arg)
 {
-	// Forward command
+	// Forward command only to concerned LogSocket
 	Session lgScktSssn = lggrMap.get(blankPttrn.split(arg, 2)[0]).sess;
 	if (lgScktSssn!=null) sendText(lgScktSssn, "/CFT "+arg);
 }
@@ -409,7 +409,8 @@ srvrCommands.put("!SILENCED", new SrvrCmd() { public void exec(Session sess, Str
 	synchronized(lggrMap) {
 		for (String shortId : blankPttrn.split(arg) ) {
 			LggrRcrd rcrd = lggrMap.get(shortId);
-			lggrMap.put(shortId, new LggrRcrd(rcrd.longId, rcrd.comment, false, true, rcrd.T, rcrd.sess));
+			lggrMap.put(shortId, new LggrRcrd(rcrd.longId, rcrd.comment, false, false, rcrd.T, rcrd.sess));
+			//record LggrRcrd(String longId, String comment, boolean on, boolean ignored, long T, Session sess)
 		}
 	}
 	sendMsgToAllListeners("%SILENCED "+arg, false);
@@ -427,7 +428,8 @@ srvrCommands.put("!CLOSE", new SrvrCmd() { synchronized public void exec(Session
 	}
 }
 } );
-// --- Client side clock sync per clock ping pong
+// --- 
+// Client side clock sync per clock ping pong >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 srvrCommands.put("!TING", new SrvrCmd() { synchronized public void exec(Session sess, String arg)
 {
 	if ( Clock.tong==null ) {
@@ -480,6 +482,7 @@ srvrCommands.put("!RSLT", new SrvrCmd() { synchronized public void exec(Session 
 	Clock.SyncDaemon.receiveTTResult(arg, lastMsgT);
 }
 } );
+// Client side clock sync per clock ping pong <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 // ------------------------------------------------------------
 lggrCommands.put("MT_LOG", new LggrCmd() { public void exec(String msgPrefix, String reportName) {
@@ -549,6 +552,7 @@ System.out.println(".... LogSocketServer path="+rootPath);
 try {
 	props.load(new FileReader(rootPath+"LogSocketServer.properties"));
 	System.out.println(".... Loaded file "+rootPath+"LogSocketServer.properties");
+	if (props.getProperty("filter1") == null) props.setProperty("filter1", "");
 	filter1.addAll( Arrays.asList(blankPttrn.split(props.getProperty("filter1"))) );
 
 } catch (FileNotFoundException e) {
@@ -558,10 +562,9 @@ try {
 
 	} catch (IOException e1) {
 		System.err.println("!!!! Cannot create file "+rootPath+"LogSocketServer.properties");
-		e1.printStackTrace();
 	}
 
-} catch (IOException e) {
+} catch (Exception e) {
 	e.printStackTrace();
 }
 

@@ -41,7 +41,7 @@ import java.util.stream.Stream;
 
 
 
-
+@FunctionalInterface 
 public interface Seq<T> {
 	void consume(Consumer<T> consumer);
 

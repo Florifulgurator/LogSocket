@@ -178,21 +178,24 @@ function onMessage(evt) {
 					return;
 				case "%%":
 					// general feedback/comment from other client:
-					msgOutput(srvrMsg, "D");
+					msgOutput(srvrMsg.substring(1), "D");
 					return;
 
 				case "%!ERROR":
 				case "%/ERROR":
-					msgOutput(srvrMsg, "E");
+					msgOutput(srvrMsg.substring(1), "E");
 					return;
-				
+				case "%/DIAGN":
+					if (TEST1) msgOutput(srvrMsg.substring(1), "L");
+					return;			
+				//   "1234567890123
 				case "%!ALERT_B": //Short extra message in the alert window
 				case "%/ALERT_B": 
-					alertBlue(srvrMsg); //TODO? Scroll to log
+					alertBlue(srvrMsg.substring(10)); //TODO? Scroll to log
 					return;
 				case "%!ALERT_R":
 				case "%/ALERT_R":
-					alertRed(srvrMsg);
+					alertRed(srvrMsg.substring(10));
 					return;
 							
 				case "%!": // general feedback:

@@ -80,7 +80,6 @@ http://www.cs.umd.edu/%7Epugh/java/memoryModel/DoubleCheckedLocking.html
 //         JDK 9/JEP 280: String Concatenations Will Never Be the Same
 //      https://www.baeldung.com/java-strings-concatenation
 //      https://www.baeldung.com/java-string-concatenation-methods
-//      https://todd.ginsberg.com/post/java-17/ten-things-i-love/
 
 //-----------------------------------------------------------------------------
 
@@ -89,10 +88,20 @@ https://stackoverflow.com/questions/47162098/is-it-possible-to-match-nested-brac
 https://regex101.com/r/yR0sS4/1
 
 
+***********************
+* A2) Java benchmarks *
+***********************
+
+//https://stackoverflow.com/a/39506822/3123382
+//Benchmark                    Mode  Cnt  Score    Error  Units
+//MyBenchmark.hasMap_get       avgt    5  0.015 ?  0.001   s/op
+//MyBenchmark.hashMap_put      avgt    5  0.029 ?  0.004   s/op
+//MyBenchmark.skipListMap_get  avgt    5  0.312 ?  0.014   s/op
+//MyBenchmark.skipList_put     avgt    5  0.351 ?  0.007   s/op
 
 
 ****************************************
-* A2) Java WebSocket programming notes *
+* A3) Java WebSocket programming notes *
 ****************************************
 
 // javax.websocket:

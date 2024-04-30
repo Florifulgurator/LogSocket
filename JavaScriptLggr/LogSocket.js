@@ -138,7 +138,7 @@ function onMessage(evt) {
 
 	case "/CFT":
 		let spl = arg.split(" ", 2);
-		let arr = shortId2PromiseRslv.get(lgr.shortId);
+		let arr = shortId2PromiseRslv.get(spl[0]);
 		if ( arr != null ) {
 			let [reslv, rejct] = arr;
 			shortId2PromiseRslv.set(spl[0], null);
@@ -322,7 +322,7 @@ function logPrms(lgr, msg) { // logCFtr in LogSocket.java
 		prms = new Promise( (resolve, reject) => { shortId2PromiseRslv.set(lgr.shortId, [resolve, reject]); });
 		websocket.send( `+${lgr.longId}&${lgr.shortId}&${++lgr.numMsgs}&P ${msg.split("\n",1)[0]}\n/CFT ${lgr.shortId}` );
 			// Here (not elswhere) we make sure there are no \n in msg
-			// /CFT ... is the command used in client response
+			// /CFT ... is the command used in client response, which adds the HTML value of the clicked button
 		return prms;
 	}
 	return Promise.reject(new Error("LogSocket is buffering."));
