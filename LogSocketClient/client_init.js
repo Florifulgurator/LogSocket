@@ -93,13 +93,11 @@
  */
 
 
-// In client_TEST.js:
-// const showTestMenu=true;
-// var TEST1 = true;
-
 /* END of Preample ***********************************************************/
 
 
+var TEST1 = true; // 1) Show test menu, 2) add thin dashed red line to bottom of output chunks #5cabad3d
+var TEST2 = true; // Filter tests
 
 
 
@@ -109,7 +107,7 @@ window.addEventListener("load", init, false);
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>
 //___ Global globals
 var sessionID = null;    // From corresponding Java WsSession object ID.
-                         // sessionID!=null indicates a clean connection. // Else not critical: used as client ID and for testing. 
+                         // sessionID!=null indicates a clean connection. // Else not yet critical: used as client ID and for testing. 
 var firstT = 0;          // Server clock Tick at first LogSocket connection. 
 var srvrMsg;             // Current message from LogSocketServer
 

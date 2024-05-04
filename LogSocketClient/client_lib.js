@@ -5,24 +5,21 @@ console.log("client_lib.js: Hello World! 9");
 // Queue for async functions for sequential execution.
 // Otionally with pause in between. 
 // Functions can be added "while" the queue is working.
-
-function MakeAsyncQueue (name, seedResult) {
+function MakeAsyncQueue (name) {
 	var queue = [];
 	var notifyWorker;
 	var queueNotEmptyPromise = new Promise( (resolve)=>{notifyWorker=resolve;} );
 	var working;
-	var result=null;
 	
 	async function queueWorker() {
 		console.log("Hello World! queueWorker() for "+name+" awaiting work.");
 		working = true;
-		let result = seedResult;
 		while (working) { await queueNotEmptyPromise;
 			if (!queue.length) break; // Promise broken, stop work
 			do { const [func, arg, millis] = queue.shift();
 				if (millis) await pause(millis);
-				try { result = await func(arg, result); // On await (even if nothing to wait) main thread is free for next task in event loop (e.g. add more functions to queue)
-				} catch (error) { console.error(error, func, arg); result=null; }
+				try { await func(arg); // On await (even if nothing to wait) main thread is free for next task in event loop (e.g. add more functions to queue)
+				} catch (error) { console.error(error, func, arg); }
 			} while (queue.length);
 			queueNotEmptyPromise = new Promise( (resolve)=>{notifyWorker=resolve;} );
 		}
@@ -37,7 +34,6 @@ function MakeAsyncQueue (name, seedResult) {
 			if (queue.length==1) notifyWorker(); // Was ==0 and worker awaiting queueNotEmptyPromise
 		},
 		len: () => queue.length,
-		getResult: () => result,
 		start: () => { !working && queueWorker(); }, 
 		stop: () => { queue=[]; working=false; notifyWorker(); }
 	};	

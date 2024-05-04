@@ -1,8 +1,9 @@
 console.log("client_TEST.js: Hello World! 2");
 
-
-const showTestMenu=true;
-var TEST1 = showTestMenu; // When developing
+// Tests switched on/off in client_init()
+// var TEST1 = true; // 1) Show test menu, 2) add thin dashed red line to bottom of output chunks #5cabad3d
+                     // 3) What ever is in the #Test areas here.
+// var TEST2 = true; // Lggr Filter tests
 
 
 // ******************************
@@ -29,7 +30,7 @@ async function measureUserAgentSpecificMemory() {
 
 
 // Init Tests >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-if (showTestMenu) {
+if (TEST1) {
 	window.addEventListener("load",
 	()=> {
 		console.log("Init TEST menu");
@@ -130,18 +131,11 @@ function TEST1_launch() {
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<Test environment
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-// Test launch-by-click area:	
+
+// #Test launch-by-click area:	
 // ////////////////////////////////////////////////////////////	
 // >>> ...
 	
-
-AsyncQueue.push(console.log, "Waiting for OnceAfterPauseTask");
-AsyncQueue.push(()=>hurzFirstTastk.launch()); // !!! "hurzFirstTastk.launch" alone wouldn't work: hurzFirstTastk object stripped away
-AsyncQueue.push(awaitPendingTaskAsynFn(hurzFirstTastk));
-AsyncQueue.push(console.log, "Finished waiting for OnceAfterPauseTask");
-AsyncQueue.push(hurzjob,TEST1_T_launch);
-AsyncQueue.push(hurzjob,"with more sleep", 1111);
-AsyncQueue.push(hurzlast);
 
 
 
@@ -153,40 +147,29 @@ AsyncQueue.push(hurzlast);
 function TEST1_stop() {
 	clearTimeout(TEST1_timerID);
 	upprCentrDIV.classList.remove("nofadeout"); // #4c64a311
-// Test kill-by-click area:	
+// #Test kill-by-click area:	
 // ////////////////////////////////////////////////////////////	
 // >>> ...
-AsyncQueue.stop();
+
+
 
 // ... <<<	
 // \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\	
 }
 
 
-// Test preparation on load area:
+if (TEST1) {
+// #Test preparation on load area:
 // ////////////////////////////////////////////////////////////	
 // >>>
 
-var AsyncQueue =  MakeAsyncQueue("HURZ");
-AsyncQueue.start();
-AsyncQueue.start();
-
-async function hurzjob(a,b) {
-	console.log(" AAAA"+a);
-	await pause(2222);
-	console.log("BB"+b);
-	return AsyncQueue.len();
-}
-
-async function hurzlast() {console.log("That was it.");}
-
-var hurzFirstTastk =  new OnceAfterPauseTask( ()=> { 
-	console.log("TEST OnceAfterPauseTask hurzFirstTastk done");
-}, 5555, 20);
-//hurzFirstTastk.launch();
-
+	
+	
+	
+	
 // <<<	
 // \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+}
 
 
 

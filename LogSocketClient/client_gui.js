@@ -367,7 +367,7 @@ const lggrListTR = document.createElement("tr");
 //---
 function newLogger_show([clr, on, shortId, realm,  subRealm, longId, comment]) {
 	
-	if (on) { // Insert in "Logger Colors" >>>>>>>>>>>>>>>>
+	if (on==1) { // Insert in "Logger Colors" >>>>>>>>>>>>>>>>
 		let listStr = document.getElementById(`lggrClr${clr}ID`).textContent;
 		const ins = colorBySubRealm? ` ${subRealm} ` : ` ${realm}${shortId} `;
 			
@@ -381,7 +381,9 @@ function newLogger_show([clr, on, shortId, realm,  subRealm, longId, comment]) {
 	let newTR = lggrListTR.cloneNode(true);
 	let col2 = newTR.querySelector(":nth-child(2)");
 	col2.id = `l${shortId}`; col2.classList.add(`bg${clr}0`);
-	if (!on) col2.classList.add("sil");  //DOCU #2540b06f  Logger Status
+	if (on==0) {console.log("OFF: "+shortId);
+		col2.classList.add("sil");
+	} else {console.log("ON: "+shortId);}  //DOCU #2540b06f  Logger Status
 	col2.setAttribute("title", `Short ID: ${shortId}`);
 	col2.appendChild(document.createTextNode(longId));
 

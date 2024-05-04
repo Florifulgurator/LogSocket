@@ -64,8 +64,8 @@ public class LogSocketServer implements ServletContextListener  {
 
 public static ExecutorService              exctrService = Executors.newFixedThreadPool(10);
 
-public static record LggrRcrd(String longId, String comment, boolean on, boolean ignored, long T, Session sess) {}
-public static Map<String,LggrRcrd>        lggrMap = new ConcurrentHashMap<>(100); // lggr.shortId |=> LggrRcrd
+public static record LggrRcrd(String longId, String comment, boolean[] on, long T, Session sess) {}
+public static Map<String,LggrRcrd>        lggrMap = new ConcurrentHashMap<>(100); // Lggr.shortId |=> LggrRcrd
 public static Comparator<String>          shortIdComprtr = (l1, l2) -> (int)Math.signum(lggrMap.get(l1).T - lggrMap.get(l2).T);
 
 public static Integer                     lastLogSocketNr = 0;
@@ -75,7 +75,7 @@ public static Boolean	                  hasListeners = false;
 
 public static Queue<String>               srvrBuffer = new ConcurrentLinkedQueue<>();
 
-private static LinkedHashSet<String>      filter1 = new LinkedHashSet<>(); // insertion order to keep things tidy //DEV #6cb5e491
+private static LinkedHashSet<String>      filter1 = new LinkedHashSet<>(); // Insertion order. Working filter in LogSocket might be ordered differently  //DEV #6cb5e491
 private static boolean                    saveFilter1 = false;
 
 public static Map<String, Long>           timersStartT = new ConcurrentHashMap<>(20); //Clock.T()
@@ -264,9 +264,7 @@ srvrCommands.put("!HELLO", new SrvrCmd() { synchronized public void exec(Session
 		// TODO #495e57b8 get loggers (incl. numMsgs) from LogSockets /PING, check with lggrMap
 		lggrMap.keySet().stream().sorted(shortIdComprtr).forEach( shortId -> {
 			LggrRcrd rcrd = lggrMap.get(shortId);
-			if (!rcrd.ignored) {
-				sendText(sess, "%NEW_LGGR " + rcrd.T + " "+(rcrd.on?"1 ":"0 ") + shortId + " " + rcrd.longId + " " + rcrd.comment ); // TODO #495e57b8 numMsgs
-			} // else *E*xistence ignored
+			sendText(sess, "%NEW_LGGR " + rcrd.T + " "+(rcrd.on[0]?"1 ":"0 ") + shortId + " " + rcrd.longId + " " + rcrd.comment ); // TODO #495e57b8 numMsgs
 		});
 	}	
 	if (!filter1.isEmpty()) sendText(sess, "%FILTER1_ADD "+filter1.stream().collect(Collectors.joining(" ")));
@@ -339,7 +337,7 @@ srvrCommands.put("!NEW_LGGR", new SrvrCmd() { public void exec(Session sess, Str
 	String[] args = blankPttrn.split(argStr, 4);
 	boolean existed;
 	synchronized(lggrMap) {
-		existed = lggrMap.put( args[1], new LggrRcrd( args[2], args[3], "1".equals(args[0])?true:false, false, T, sess ) ) != null;
+		existed = lggrMap.put( args[1], new LggrRcrd( args[2], args[3], new boolean[]{"1".equals(args[0])}, T, sess ) ) != null;
 	}
 	
 	if( existed ) {
@@ -409,8 +407,10 @@ srvrCommands.put("!SILENCED", new SrvrCmd() { public void exec(Session sess, Str
 	synchronized(lggrMap) {
 		for (String shortId : blankPttrn.split(arg) ) {
 			LggrRcrd rcrd = lggrMap.get(shortId);
-			lggrMap.put(shortId, new LggrRcrd(rcrd.longId, rcrd.comment, false, false, rcrd.T, rcrd.sess));
-			//record LggrRcrd(String longId, String comment, boolean on, boolean ignored, long T, Session sess)
+			if (rcrd!=null) { rcrd.on[0] = false;
+			} else {
+				sendMsgToAllListeners("%!ERROR 23 LogSocketServer: Lost track of Lggr "+shortId, false);
+			}
 		}
 	}
 	sendMsgToAllListeners("%SILENCED "+arg, false);
@@ -552,8 +552,11 @@ System.out.println(".... LogSocketServer path="+rootPath);
 try {
 	props.load(new FileReader(rootPath+"LogSocketServer.properties"));
 	System.out.println(".... Loaded file "+rootPath+"LogSocketServer.properties");
-	if (props.getProperty("filter1") == null) props.setProperty("filter1", "");
-	filter1.addAll( Arrays.asList(blankPttrn.split(props.getProperty("filter1"))) );
+	if (props.getProperty("filter1") == null) {
+		props.setProperty("filter1", "");
+	} else {
+		if ( props.getProperty("filter1").trim() != "" ) filter1.addAll( Arrays.asList(blankPttrn.split(props.getProperty("filter1").trim())) );
+	}
 
 } catch (FileNotFoundException e) {
 	try {
@@ -707,6 +710,7 @@ sendText(sess, "%!ERROR 18 LogSocketServer.Clock: T0correction("+LogSocketServer
 LogSocketServer.sendText(sess, "!ERROR 20 LogSocketServer.Clock: tingtongReceiver exception "+e.getClass().getName()+" message: "+ e.getMessage());
 sendMsgToAllListeners("%!ERROR 21 LogSocketServer: Empty msg from "+shortClObjID(session), false);
 sendMsgToAllListeners("%!ERROR 22 LogSocketServer: /CFT Exception: "+e.getClass().getName()+" "+e.getMessage()+" arg="+arg, false);
+sendMsgToAllListeners("%!ERROR 23 LogSocketServer: Lost track of Lggr "+shortId, false);
 
 
 

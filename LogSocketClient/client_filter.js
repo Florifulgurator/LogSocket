@@ -1,11 +1,4 @@
-console.log("client_filter.js: Hello World! 10");
-
-
-
-//OLD--------------------
-
-
-//NEW--------------------
+console.log("client_filter.js: Hello World! 11");
 
 
 // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -16,13 +9,15 @@ var Filter = Filter || ( () => {
 
 // Namespacing isn't really needed, but I want to check out if this works:
 
+if (TEST2) console.log("=== Filter test on");
+
 class Rule extends Array {
 	constructor(realm, labelsL) {
-		if ( labelsL.some( (s)=> s.charAt(0)!="#") ) console.warn("#7370349f Labels should start with #. Added!");
+		if (TEST2) if ( labelsL.some( (s)=> s.charAt(0)!="#") ) console.error("#7370349f Labels should start with #. Added!");
 		super( realm, labelsL.map( (s)=> (s.charAt(0)!="#")?"#"+s:s ).sort() ); 
 	}
 	
-	toString() { return`${this[0]}>${this[1].join("&")}`;}
+	toString() { return`${this[0]}>${this[1].join("^")}`; } // #1c887880
 	
 	static fromLongId(longId) {
 		const [realm, rest] = longId.split("/",2);
@@ -38,17 +33,17 @@ class RuleMap extends Map { // A "deep Map"
 	constructor() { super(); }
 	
 	set(key, value) {
-		if (key.constructor.name!="Rule") console.error("#2677dadf Not a filter Rule");;
+		if (TEST2) if (key.constructor.name!="Rule") console.error("#2677dadf Not a filter Rule");;
 		super.set(JSON.stringify(key), [value, key]);
 		return this;
 	}
 	
 	get(key) {
-		if (key.constructor.name!="Rule") console.error("#6cef974a Not a filter Rule");;
+		if (TEST2) if (key.constructor.name!="Rule") console.error("#6cef974a Not a filter Rule");;
 		return super.get(JSON.stringify(key))[0]; }
 
 	has(key) {
-		if (key.constructor.name!="Rule") console.error("#456c080d Not a filter Rule");;
+		if (TEST2) if (key.constructor.name!="Rule") console.error("#456c080d Not a filter Rule");;
 		return super.has(JSON.stringify(key)); }
 		
 	keys() {
@@ -100,15 +95,25 @@ function _addFltrRl() { //DEV #23e526a3
 	hideContextMenus();
 }
 
-// %STOPPED" //DEV silenced!!!
-// Loggers that were active, but got stopped  TODO #36e7e6a9 GUI Queue
-function stppdLggrs(s) {  //DEV #23e526a3
-console.log("QQQQQQQQQQQQQQQQQQ stppdLggrs: "+s); return;
+// %SILENCED"
+// Loggers filtered "M": ignore messages
+function silencedLggrs(s) {  //DEV #23e526a3
+console.log("QQQQQQQQQQQQQQQQQQ silencedLggrs: "+s);
 	const shortIdList = s.split(" ");
 	for ( const shortId of s.split(" ")) {
 		let el = document.getElementById(`l${shortId}`); 
 		if (el) el.classList.add("sil"); //DOCU #2540b06f  Logger Status
-		else console.error(`stppdLggrs(${s}) ERROR1`, el);
+		else console.error(`silencedLggrs(${s}) ERROR1`, el);
+	}
+}
+//---
+function ignoredLggrs(s) {  //DEV #23e526a3
+console.log("QQQQQQQQQQQQQQQQQQ ignoredLggrs: "+s);
+	const shortIdList = s.split(" ");
+	for ( const shortId of s.split(" ")) {
+		let el = document.getElementById(`l${shortId}`); 
+		if (el) el.classList.add("ign"); //DOCU #2540b06f  Logger Status
+		else console.error(`ignoredLggrs(${s}) ERROR1`, el);
 	}
 }
 //---

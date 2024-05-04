@@ -77,6 +77,12 @@
 	<style>
 		.a:hover {outline: solid;}
 		#testlogID {outline: solid;}
+		.mnspcd  {font-family: monospace, monospace; } /* sic! */
+		.smallr  {font-size: smaller;}
+		.bold    {font-weight: 700;}
+		.nobr    {white-space: nowrap;}
+		.pre     {white-space: pre;}
+
 /* To see the logger colors close together: */
 /* COPYPASTE #7eb9e155 from client.css Only bg[A-Z]0 is used*/
 /* ***************************** */
@@ -133,7 +139,7 @@ Oversized UTF-8 "👁↑" to be sent by #HELLOWORLD and #UTFTEST loggers.
 loggers of differently colored realms to test output colors.
 <br>
 <label id="mouseEnterLogID"><input type="checkbox" onclick="mouseEnterLogClick()"/>
-	Log <tt>mouseenter</tt> event on each word:
+	Log <span class="mnspcd">mouseenter</span> event on each word:
 </label>
 
 <p><%= spanText %> <br> <%= spanText2 %></p>

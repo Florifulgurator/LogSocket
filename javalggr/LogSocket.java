@@ -15,11 +15,9 @@ import java.lang.ref.WeakReference;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -55,8 +53,8 @@ private static Map<String,Integer>       realmLabel2lastLggrN2 = new ConcurrentH
 
 static Map<String, Map<Long, ArrayList<LggrRefRcrd>>>
                                          realm2labelsCode2LggrRefRcrdList = new ConcurrentHashMap<>();
-static record LggrRefRcrd(String longIdX, int nr, boolean[] ignr, WeakReference<Lggr> wref) {}  // #longIdX // ignr[0] is modifyable 
-// Lggr data needed for cleanup after WeakReference became null
+static record LggrRefRcrd(String longIdX, int nr, boolean[] madeKnown, WeakReference<Lggr> wref) {}
+// Lggr data needed for cleanup after WeakReference became null // madeKnown[0] is modifyable 
 
 static Map<String, String>               filteredRealmLabel = new ConcurrentHashMap<>();
                                         
@@ -121,8 +119,7 @@ public static void onClose(Session sess, Integer statuscode, String reason) {
 
 public static void onError(Session sess, Throwable thrbl) {
 	System.err.println("---- LogSocket: onError LogSocket /"+Nr+" Session="+shortClObjID(sess)
-		+" Throwable.getMessage()="+thrbl.getMessage()
-		+" ...toString()="+thrbl.toString()
+		+" "+thrbl.toString()
 		+ ( (thrbl.getCause()==null) ? "...getCause()=null" : "...getCause().toString()="+thrbl.getCause().toString() )
 	);	
 }
@@ -166,9 +163,9 @@ static public void onMessage(String msg, Session sess) {
 		System.out.println(msg);//DIAGN
 		for( String ruleStr : blankPttrn.split(cmd[1]) ) {
 			try {
-				Filter.applyRule2lggrs( Filter.parseRuleString(ruleStr) );
+				Filter.applyRule2lggrs( Filter.parseRuleStringAndStore(ruleStr) );
 			} catch(FilterError e) {
-				complain("LogSocket_ERROR_17: "+e.getMessage());
+				complain("LogSocket_ERROR_17: "+e);
 			}
 		}
 		return;
@@ -233,9 +230,23 @@ public static synchronized Lggr newLggr(String realm, String label, String comme
 	String checkedRealmLabel = checkedRealm + (checkedLabel=illglLblChrsPttrn.matcher(checkedLabel).replaceAll(""));
 
 	String filtered;
-	if ( "E".equals( filtered=filteredRealmLabel.get(checkedRealmLabel) ) ) { //DOCU filter1 //DEV #6cb5e491
-		System.out.println("newLggr FILTERED on creation: "+checkedRealm+" "+checkedLabel+" "+comment+( checkedRealmLabel.equals(realm+label) ? "" : " [REAL/LABEL CORRECTED]" ));  //DIAGN
+	if ( "E".equals( filtered=filteredRealmLabel.get(checkedRealmLabel) ) ) { // "E" == ignore existence //DEV #6cb5e491
+		System.out.println("newLggr pre-FILTERED \"E\" on creation: "+checkedRealm+" "+checkedLabel+" "+comment+( checkedRealmLabel.equals(realm+label) ? "" : " [REAL/LABEL CORRECTED]" ));  //DIAGN
 		return new Lggr(checkedRealm, checkedLabel, 0, 0L, "", 0);
+	}
+
+	long labelsCode = Filter.registerLabels( Arrays.stream(checkedLabel.split("#")).skip(1) );
+
+	if ( filtered==null ) {
+		if ( null != (filtered = Filter.filter(checkedRealm, labelsCode)) ) {
+			filteredRealmLabel.put(checkedRealmLabel, filtered);
+		}
+		System.out.println("newLggr: Checking filter result="+filtered);
+	}
+
+	if ( "E".equals(filtered) ) {
+		System.out.println("newLggr FILTERED \"E\" on creation: "+checkedRealm+" "+checkedLabel+" "+comment+( checkedRealmLabel.equals(realm+label) ? "" : " [REAL/LABEL CORRECTED]" ));  //DIAGN
+		return new Lggr(checkedRealm, checkedLabel, 0, 0L, "", 0);	
 	}
 	// ----------------------
 	
@@ -245,9 +256,6 @@ public static synchronized Lggr newLggr(String realm, String label, String comme
 	int n2 = lastLggrN2==null ? 0 : lastLggrN2+1;
 	realmLabel2lastLggrN2.put(checkedRealmLabel, n2);
 
-
-	long labelsCode = Filter.registerLabels( Arrays.stream(checkedLabel.split("#")).skip(1) );
-
 	Lggr newLggr = new Lggr(
 			checkedRealm, checkedLabel,
 			n2,
@@ -255,10 +263,12 @@ public static synchronized Lggr newLggr(String realm, String label, String comme
 			( comment = comment.trim()+( checkedRealmLabel.equals(realm+label) ? "" : " [REAL/LABEL CORRECTED]" ) ),
 			++numLggrs
 	);
-	newLggr.on = !"M".equals(filtered); //DOCU filter1 //DEV #6cb5e491
+	newLggr.on = !"M".equals(filtered); // "M" == ignore messages //DEV #6cb5e491
 
-	LggrRefRcrd lRR = new LggrRefRcrd(checkedRealmLabel+";"+n2, numLggrs, new boolean[]{true}, new WeakReference<>(newLggr));
-	newLggr.lggrRefRcrd = lRR;  // #longIdX
+	// LggrRefRcrd has Lggr data needed for garbage collection cleanup
+	// static record LggrRefRcrd(String longIdX, int nr, boolean[] madeKnown, WeakReference<Lggr> wref) {}
+	LggrRefRcrd lRR = new LggrRefRcrd(checkedRealmLabel+";"+n2, numLggrs, new boolean[]{false}, new WeakReference<>(newLggr));
+	newLggr.lggrRefRcrd = lRR;
 
 	// Add to data structure for filter:
 	ArrayList<LggrRefRcrd> lggrRefRcrdList = null;
@@ -290,7 +300,7 @@ public static synchronized Lggr newLggr(String realm, String label, String comme
 		makeKnown(newLggr);
 	}
 
-	System.out.println("newLggr on="+newLggr.on+" ignore="+newLggr.ignore+" "+Long.toBinaryString(labelsCode)
+	System.out.println("newLggr on="+newLggr.on+" "+Long.toBinaryString(labelsCode)
 		+" "+realm+" "+label+" "+comment
 	); //DIAGN
 
@@ -302,15 +312,15 @@ static {
 	// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 	exctrService.execute( () -> {
 		System.out.println("==== WeakRef cleanup daemon running...");
-		ArrayList<LggrRefRcrd>      qEl;
-		Set<ArrayList<LggrRefRcrd>> qElSet = new HashSet<>(); //TODO best performant implementation of Set
-		ArrayList<String>           cmdArgList = new ArrayList<>();
+		ArrayList<LggrRefRcrd>            qEl;
+		ArrayList<ArrayList<LggrRefRcrd>> qElSet = new ArrayList<>();
+		ArrayList<String>                 cmdArgList = new ArrayList<>();
 		String DIAGNmsg[] = {""};
 
 		while (!Thread.interrupted()) {
 			try {
 				qEl = cleanupQ.take(); // wait for first element in queue
-				Thread.sleep(333);     // likely there will come more, wait for them
+				Thread.sleep(222);     // likely there will come more, wait for them
 			} catch (InterruptedException e) {
 				break;
 			}
@@ -327,12 +337,13 @@ static {
 							String shortId = "/"+Nr+"_"+rcrd.nr;
 							DIAGNmsg[0] += " "+shortId;
 							shortId2CFuture.remove(shortId);
-							if (!rcrd.ignr[0]) {
+							if (rcrd.madeKnown[0]) {
 								// #5f5d8a51
+								// makeKnown() has sent !NEW_LGGR. Now !GC_LGGR is due:
 								// !GC_LGGR args for later use. We hold the lock on lggrRefRcrdList as shortly as possible
 								String[] spl = rcrd.longIdX.split("#",2);
 								cmdArgList.add(	shortId +" "+ spl[0]+"/"+Nr+"#"+spl[1] );
-								// A "longId2" that can have ";0" at the end unlike longId #66f78f43
+								// A "longIdX" that can have ";0" at the end unlike longId #66f78f43
 								DIAGNmsg[0] += "*";
 							}
 							return true;
@@ -358,11 +369,11 @@ static {
 } // END static
 
 
-protected static void finalizeLggr(String longId, long labelsCode) {
+protected static void finalizeLggr(String realm, long labelsCode) {
 // Registered after nrBuffer/logBuffer are released and their Lggr references cleared.
 // I.e. at this point LogSocket.Nr is known, while in realm2labelsCode2LggrRefRcrdList it is not known.
 	ArrayList<LggrRefRcrd> lggrRefRcrdList = null;
-	try { lggrRefRcrdList = realm2labelsCode2LggrRefRcrdList.get(longId.split("/",2)[0]).get(labelsCode); }
+	try { lggrRefRcrdList = realm2labelsCode2LggrRefRcrdList.get(realm).get(labelsCode); }
 	catch (Exception e) { //NullPointerException
 		System.err.println("---- LogSocket_ERROR_18 lggrRefRcrdList not found in realm2labelsCode2LggrRefRcrdList: "+e.getMessage());
 	}
@@ -378,17 +389,16 @@ protected static void makeLggrIdStrings(Lggr lgr) {
 	if (Nr!=null) lgr.shortId = "/"+Nr+"_"+lgr.nr;
 	
 	// DOCU #longId #shortId
-	// Filter and Cleaner use a #longIdX without LogSocket.Nr (not necessarily known at creation of Filter/Cleaner entry).
+	// Filter and Cleaner use a longIdX without LogSocket.Nr (not necessarily known at creation of Filter/Cleaner entry).
 }
 	
 
-private static boolean makeKnown(Lggr lgr) { // FIXME #12fe3d9c %NEW_LGGR null Jsp/null#HELLOWORLD (UTF-8 test: 👁↑) Throwaway logger in declaration
+private static void makeKnown(Lggr lgr) { // FIXME #12fe3d9c %NEW_LGGR null Jsp/null#HELLOWORLD (UTF-8 test: 👁↑) Throwaway logger in declaration
+	if (lgr.dontMakeKnown) return; //TODO JavaScript
 	try {
-		lgr.ignore = false;	lgr.lggrRefRcrd.ignr[0] = false; // #5f5d8a51
-		
-		String lid = lgr.longId; // to be sure no reference to lgr is passed to lgr.cleanable
-		long lbc = lgr.labelsCode;
-		lgr.cleanable = cleaner.register(lgr, () -> finalizeLggr(lid, lbc) );
+		String realm = lgr.longId.split("/",2)[0];
+		long lbc = lgr.labelsCode; // to be sure no reference to lgr is passed to lgr.cleanable
+		lgr.cleanable = cleaner.register(lgr, () -> finalizeLggr(realm, lbc) );
 		
 		websocket.sendText("!NEW_LGGR "
 				+ (lgr.on?"1 ":"0 ")
@@ -396,15 +406,17 @@ private static boolean makeKnown(Lggr lgr) { // FIXME #12fe3d9c %NEW_LGGR null J
 				+ lgr.longId
 				+ (lgr.comment!=null ? " "+lgr.comment : "")); // see also GC_LGGR
 
+		lgr.lggrRefRcrd.madeKnown[0] = true;// #5f5d8a51
+
 	} catch (Exception e) {
 		System.err.println("---- LogSocket_ERROR_5 Exception: "+e.getMessage());
 		lgr.comment = "LogSocket_ERROR_5 Exception: "+e.getMessage();
 		lgr.on = false;
 		lgr.cleanable = null;
 		shutDown = true; isOpen = false;
-		return false;
+		return;
 	}
-	return true;
+	return;
 }
 
 static void releaseNrBuffer() {

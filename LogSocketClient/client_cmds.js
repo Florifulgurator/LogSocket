@@ -139,11 +139,11 @@ function onMessage(evt) {
 					countNonLogMsg();
 					msgOutput(srvrMsg, "L", cmdGC?"cmd":null);
 					return;
-				case "%STOPPED":
+				case "%SILENCED":
 					// Loggers that were active, but got stopped
-					GUIworkQueue.push( stppdLggrs, srvrMsg.substring(9));
+					GUIworkQueue.push( silencedLggrs, srvrMsg.substring(10));
 					countNonLogMsg();
-					msgOutput(srvrMsg, "S", "cmd"); // Add class "cmd" for hiding srvrMsg
+					msgOutput(srvrMsg, "L", "cmd"); // Add class "cmd" for hiding srvrMsg
 					return;
 				//   "1234567890123
 				case "%FILTER1_ADD":

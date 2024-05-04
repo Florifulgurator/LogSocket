@@ -13,25 +13,24 @@ public class Lggr {
 	// Unique for the associated LogSocket.
 	// Including LogSocket.Nr gives global uniqueness.
 	public String realm = "Jv";   // Default realm: Jv=Java
-	public String label;          // 
+	public String label;          // A label always starts with "#" and may contain sub-labels
 	public int n2;                // Realm+Label duplicate number, determined by LogSocket
 	//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 	public int nr;     	   	       // Counted by LogSocket. Incl. LogSocket.Nr gives unique no-information shortId for Listener GUI.
 	                               // nr==0 : realm+label listed as stopped/filtered before creation. => no longId, shortId, no finalization registry //DEV #6cb5e491
 	public boolean on = false;     // Logger messages switched on/off: A) when filtered "M" or when B) max log msg count reached
-	public boolean ignore = true;  // When filtered "E" or under construction: "Silent" cleanup #5f5d8a51
 	public int numMsgs = 0;        // Counted by LogSocket
 	public String longId;		   // Human readable informational unique Id, for syntax see LogSocket#makeLggrIdStrings
 	public String shortId = null;  // "/"+LogSocket.Nr+"_"+nr
 	public String comment;
 	
-	Cleaner.Cleanable cleanable = null;  // ==null when filtered "E" 
-	long labelsCode = 0L; // !=null when registered for filter and cleanup of weak references
-	// Filter and Cleaner use a #longIdX without LogSocket.Nr (not necessarily known at creation of Filter/Cleaner entry).
-	LogSocket.LggrRefRcrd lggrRefRcrd = null; // has copy of ignore to indicate silent cleanup #5f5d8a51
+	Cleaner.Cleanable cleanable = null;       // ==null when filtered "E" 
+	long labelsCode = 0L;                     // !=0L when registered for filter and cleanup of weak references
+	public boolean dontMakeKnown = false;     // When filtered "E" before makeKnown(): "Silent" cleanup #5f5d8a51
+	LogSocket.LggrRefRcrd lggrRefRcrd = null;
 	
-	
+	// Special logging functionalities:
 	public Hashtable<String,Integer> repeatCounters; // log max. n messages as counted by counter logCntrID
 	
 	public int microTimerWarmupCntr;

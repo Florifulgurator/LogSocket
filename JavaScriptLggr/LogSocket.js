@@ -117,7 +117,7 @@ function onMessage(evt) {
 		return;
 
 	case "/PING":
-		websocket.send("%/ LogSocket /"+Nr+" is alive! "+numLggrs+" loggers created."); // TODO #495e57b8
+		websocket.send("%/ LogSocket /"+Nr+" (JavaScript) is alive! "+numLggrs+" loggers created."); // TODO #495e57b8
 		return;
 
 	case "/GC":

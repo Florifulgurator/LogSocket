@@ -9,8 +9,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Consumer;
-import java.util.function.Function;
+import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -19,9 +19,12 @@ import java.util.stream.Stream;
 
 public class Filter {
 
+static Map<String, String>            rules = new ConcurrentHashMap<>(); // insertion order to keep things tidy
+static Map<String, ConcurrentSkipListMap<Long, String>> realm2labelsCode2RuleResult = new ConcurrentHashMap<>();
+
 public static record RuleLR(String realm, String[] labels, long labelsCode, String result) {
 	public String toRuleRStr() {
-		return realm + ">" + (labels==null?"*":Arrays.stream(labels).collect(Collectors.joining("&")))
+		return realm + ">" + (labels==null?"*":Arrays.stream(labels).collect(Collectors.joining("^")))
 	           + "=" + result;
 	}
 	public String toRuleStr() {
@@ -33,17 +36,7 @@ public static record RuleLR(String realm, String[] labels, long labelsCode, Stri
 
 }
 
-static Map<String, String>            rules = new ConcurrentHashMap<>(); // insertion order to keep things tidy
-
-static Map<String, Map<Long, String>> realm2labelsCode2RuleResult = new ConcurrentHashMap<>();
-
-
-
-
-// DOCU #1c887880 Rule string syntax:
-// realm>#label1#label12&#label3=M  // #label1#label12 treated as one label. "M" ignore *M*essages, but track existence and make ID
-//  *>#label1&#label2&#label3=E     // 3 labels. "E" ignore *E*xistence. No finalize(), no ID for new loggers
-// rlm>*=M
+static boolean TEST1 = true;
 
 @SuppressWarnings("serial")
 static class FilterError extends RuntimeException {
@@ -53,8 +46,54 @@ static class FilterError extends RuntimeException {
 }
 
 
+// DOCU #681a8b4e long integer labelsCode
+// There can be max. 63 sub-labels per LogSocket. Each new sub-label gets assigned a bit.
+// The order of the sub-labels in the labels string in a logger longId will not be
+// changed, but for filtering the labels string is represented by the bit pattern
+// given by OR-ing the label bits in a long integer.
+// If zero it means "*" in the rule String.
 
-static RuleLR parseRuleString(String ruleRStr) throws FilterError {
+static Map<String, Long> label2Nr = new ConcurrentHashMap<>();
+static Map<Long, Integer> labelsCode2NumBits = new ConcurrentHashMap<>(); 
+static long nextLabelNr = 1L;
+/**
+ * Selfdocumenting name
+ */
+public static long registerLabels(Stream<String> labelsStream) { //TODO distinct sublabels!
+	long[] labelsCode = {0L}; // effectively final
+	Long[] sublabelNr = {0L};
+	int[] numBits = {0};
+	
+	labelsStream.distinct().forEach( lbl -> {
+		if( null==( sublabelNr[0]=label2Nr.get(lbl) ) ) {
+			label2Nr.put(lbl, nextLabelNr); System.out.println("DIAGN label2Nr.put("+lbl+", "+Long.toBinaryString(nextLabelNr)+"))");
+			labelsCode[0] |= nextLabelNr;
+			numBits[0]++;
+			if( (nextLabelNr<<=1) == -9223372036854775808L ) {
+				//TODO Exlude from filter
+				throw new FilterError("Max. number of labels reached");
+			}
+		} else {
+			labelsCode[0] |= sublabelNr[0];
+			numBits[0]++;
+		}
+	});
+	
+	labelsCode2NumBits.put(labelsCode[0], numBits[0]);
+	return labelsCode[0];
+}
+
+
+
+// DOCU #1c887880 Rule string syntax:
+// realm>#label1#label12^#label3=M  // #label1#label12 treated as one label. "M" ignore *M*essages, but track existence and make ID
+//  *>#label1^#label2^#label3=E     // 3 labels. "E" ignore *E*xistence. No finalize(), no ID for new loggers
+// rlm>*=M
+public static final Pattern hatPttrn = Pattern.compile("\\^");
+/**
+ * Selfdocumenting name
+ */
+static RuleLR parseRuleStringAndStore(String ruleRStr) throws FilterError {
 	long labelsCode = 0L;
 	int a = ruleRStr.indexOf('>');
 	int b = ruleRStr.indexOf('=');
@@ -69,7 +108,7 @@ static RuleLR parseRuleString(String ruleRStr) throws FilterError {
 		labelsCode = 0L;
 	} else {
 		if (ruleRStr.charAt(a+1)!='#') throw new FilterError("parseRuleString("+ruleRStr+") Error4");
-		lblL = ruleRStr.substring(a+1, b).split("&");
+		lblL = hatPttrn.split(ruleRStr.substring(a+1, b));
 		Arrays.sort(lblL);
 		labelsCode = registerLabels( Arrays.stream(lblL).map( s->s.substring(1) ) );
 	}
@@ -89,9 +128,19 @@ static RuleLR parseRuleString(String ruleRStr) throws FilterError {
 	rules.put(ruleStr, ruleLR.result);
 	
 	//Register rule:
-	Map<Long, String> labelsCode2RuleResult = realm2labelsCode2RuleResult.get(ruleLR.realm);
+	ConcurrentSkipListMap<Long, String> labelsCode2RuleResult = realm2labelsCode2RuleResult.get(ruleLR.realm);
 	if (null==labelsCode2RuleResult) {
-		labelsCode2RuleResult = new ConcurrentHashMap<>();
+		labelsCode2RuleResult = new ConcurrentSkipListMap<Long,String>(
+			// Sort by specificity #1ab76b52
+			(l1,l2) -> {
+				Integer b1=labelsCode2NumBits.get(l1), b2=labelsCode2NumBits.get(l2);
+				if ( b1==null || b2==null ) {
+					b1=0; b2=0;
+					throw new FilterError("BUG: ConcurrentSkipListMap comparator: labelsCode2NumBits gives null.");
+				}
+				return b1!=b2 ? (int)Math.signum(b1-b2) : (int)Math.signum(l1-l2);
+			}
+		);
 		realm2labelsCode2RuleResult.put(ruleLR.realm, labelsCode2RuleResult);
 	}
 	labelsCode2RuleResult.put(labelsCode, ruleLR.result);
@@ -99,41 +148,48 @@ static RuleLR parseRuleString(String ruleRStr) throws FilterError {
 	return ruleLR;
 }
 
-// DOCU #681a8b4e long integer labelsCode
-// There can be max. 63 sub-labels per LogSocket. Each new sub-label gets assigned a bit.
-// The order of the sub-labels in the labels string in a logger longId will not be
-// changed, but for filtering the labels string is represented by the bit pattern
-// given by OR-ing the label bits in a long integer.
-// If zero it means "*" in the rule String.
 
-static Map<String, Long> label2Nr = new ConcurrentHashMap<>();
-static long nextLabelNr = 1L;
-
-public static long registerLabels(Stream<String> labelsStream) {
-	long[] labelsCode = {0L}; // effectively final
-	Long[] labelNr = {0L};
-
-	labelsStream.forEach( lbl -> {
-		if( null==( labelNr[0]=label2Nr.get(lbl) ) ) {
-			label2Nr.put(lbl, nextLabelNr); System.out.println("label2Nr.put("+lbl+", "+Long.toBinaryString(nextLabelNr)+"))");
-			labelsCode[0] |= nextLabelNr;
-			if( (nextLabelNr<<=1) == -9223372036854775808L ) {
-				//TODO Exlude from filter
-				throw new FilterError("Max. number of labels reached");
-			}
-		} else {
-			labelsCode[0] |= labelNr[0];
+/**
+ * Apply all filter rules to realm and labelsCode.
+ * 
+ * The rule with the largest number of bits in its labelsCode wins.
+ * A rule for a specific realm wins over rules for any realm.
+ */
+static String filter(String realm, long labelsCode) {
+	String[] result = {null};
+	
+	Stream.of("*", realm).forEach( rlm -> {
+		Map<Long, String> labelsCode2RuleResult = realm2labelsCode2RuleResult.get(rlm);
+		if ( labelsCode2RuleResult!=null ) {
+			labelsCode2RuleResult.keySet().forEach( ruleLblsCd -> {
+				if ( (ruleLblsCd & labelsCode) == ruleLblsCd ) {
+					result[0] = labelsCode2RuleResult.get(ruleLblsCd);
+System.out.println("=== DIAGN filter result=="+result[0]+" ruleLblsCd=="+Long.toBinaryString(ruleLblsCd)+" labelsCode=="+Long.toBinaryString(labelsCode));
+					// More specific rules (with more bits in the labelsCode) override the more general rules. #1ab76b52
+				}
+			});
 		}
 	});
-	
-	return labelsCode[0];
+
+	return result[0];
 }
 
 
 
-// Apply rule to existing lggrs
-static void applyRule2lggrs(RuleLR ruleLR) { //DEV #23e526a3 #6cb5e491
 
+
+
+
+static int[] DIAGNfltrdNum = {0};
+static int[] DIAGNalreadyfltrdNum = {0};
+static int[] DIAGNgoneNum = {0};
+static final Map<String, String> ruleResult2cmd = Map.of("M", "!SILENCED ", "E", "%IGNORED ");
+
+/** 
+ * Apply a filter rule to all existing lggrs
+ */
+static synchronized void applyRule2lggrs(RuleLR ruleLR) { //DEV #23e526a3 #6cb5e491
+System.out.println("== DIAGN applyRule2lggrs "+ruleLR);
 	if ( ruleLR.labels==null ) {
 		LogSocket.complain("TODO #6776bf39 filter1 rule="+ruleLR);
 		LogSocket.sendMsg("%/ALERT_R TODO #6776bf39 Filter:<br/>"+escapeHTML(ruleLR.toString()));
@@ -148,7 +204,7 @@ static void applyRule2lggrs(RuleLR ruleLR) { //DEV #23e526a3 #6cb5e491
 		realms = Set.of(ruleLR.realm);
 	}
 
-	Function<StringJoiner, Consumer<LogSocket.LggrRefRcrd>> foreach = ruleResult2foreach.get(ruleLR.result);
+	boolean resultIsE = "E".equals(ruleLR.result);
 	StringJoiner joiner = new StringJoiner(" ", ruleResult2cmd.get(ruleLR.result), "");
 	joiner.setEmptyValue("");
 	DIAGNfltrdNum[0]=0;
@@ -161,9 +217,39 @@ static void applyRule2lggrs(RuleLR ruleLR) { //DEV #23e526a3 #6cb5e491
 			if ( (labelsCode & ruleLR.labelsCode) == ruleLR.labelsCode ) {
 				ArrayList<LogSocket.LggrRefRcrd> lggrRefRcrdList = labelsCode2lggrRefRcrdList.get(labelsCode);
 				if (!lggrRefRcrdList.isEmpty()) {
-					synchronized (lggrRefRcrdList) {
-						lggrRefRcrdList.forEach( foreach.apply(joiner) );
-					}
+					synchronized (lggrRefRcrdList) { //>>>>>>>>>>>>>>>>>>>>>>>>
+						lggrRefRcrdList.forEach(
+							rcrd -> {
+
+								Lggr l = rcrd.wref().get();
+								if ( l!=null ) {
+System.out.println("=== DIAGN applyRule2lggrs realmlabel=="+l.realm+l.label+" longIdX=="+rcrd.longIdX());
+
+									if ( l.on ) {
+										l.on=false;
+										DIAGNfltrdNum[0]++;
+										LogSocket.filteredRealmLabel.put(l.realm+l.label, ruleLR.result);
+									} else {
+										//----------------------------------
+										if (TEST1) {
+											if ( !LogSocket.filteredRealmLabel.containsKey(l.realm+l.label) ) {
+												System.err.println("**** LogSocket.Filter TEST1.B: BUG! LogSocket.filteredRealmLabel.containsKey(\""+l.realm+l.label+"\") == false");
+											}
+										}
+										//----------------------------------
+										DIAGNalreadyfltrdNum[0]++;
+									}
+									if (resultIsE) l.dontMakeKnown = true;
+									if (rcrd.madeKnown()[0]) joiner.add(l.shortId);
+																
+								} else {
+									DIAGNgoneNum[0]++;
+System.out.println("=== DIAGN applyRule2lggrs longIdX=="+rcrd.longIdX());
+
+								}
+							}
+						);
+					} // synchronized <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 				}
 			}
 		});
@@ -186,32 +272,6 @@ static void applyRule2lggrs(RuleLR ruleLR) { //DEV #23e526a3 #6cb5e491
 	}
 }
 //---
-
-static int[] DIAGNfltrdNum = {0};
-static int[] DIAGNalreadyfltrdNum = {0};
-static int[] DIAGNgoneNum = {0};
-
-static final Function<StringJoiner, Consumer<LogSocket.LggrRefRcrd>> consumerM = joiner -> rcrd -> {
-	Lggr l = rcrd.wref().get();
-	if ( l!=null ) {
-		if ( l.on ) {
-			l.on=false;  rcrd.ignr()[0]=false;
-			DIAGNfltrdNum[0]++;
-		} else {
-			DIAGNalreadyfltrdNum[0]++;
-		}
-		joiner.add(l.shortId);
-
-	} else DIAGNgoneNum[0]++;
-};
-
-static final Function<StringJoiner, Consumer<LogSocket.LggrRefRcrd>> consumerE = joiner -> rcrd -> System.out.println("TODO filter E "+rcrd);
-
-static final Map<String, Function<StringJoiner, Consumer<LogSocket.LggrRefRcrd>>> ruleResult2foreach = Map.of("M", consumerM, "E", consumerE);
-
-static final Map<String, String> ruleResult2cmd = Map.of("M", "!SILENCED ", "E", "%IGNORED ");
-
-
 
 
 
