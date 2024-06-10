@@ -1,6 +1,6 @@
 package florifulgurator.logsocket.utils;
 // Instead of florifulgurator.logsocket.YSeq.Tuple
-// TODO test which is better
+// TODO test which is better qwertz
 
 public class Tuple<S, T> {
 	public S t1;
@@ -26,7 +26,7 @@ public class Tuple<S, T> {
 			System.out.println(">>>>>>>>>> Testing Tuple >>>>>>>>>>\n");
 		
 			Tuple<Double,Double> xy = new Tuple<Double,Double>(1.0, 0.0);
-			//Tuple<Double,Double> rot30xy = rot30(xy);
+			//FnctlTuple<Double,Double> rot30xy = rot30(xy);
 			//TupleObject<Double,Double>  tpo = rot30xy.toObject();
 			
 			System.out.println("Rotating vector ("+xy.t1+","+xy.t2+")");
@@ -34,7 +34,7 @@ public class Tuple<S, T> {
 			System.out.println("180° counterclockwise: "+ rot30(rot30(rot30(rot30(rot30(rot30(xy)))))).toString());
 //90° counterclockwise:  (2.7755575615628914E-16, 1.0)
 //180° counterclockwise: (-1.0, 5.551115123125783E-16)
-//Same error as Seq Tuple
+//Same error as Seq FnctlTuple
 			System.out.println("xy: ("+xy.t1+","+xy.t2+")");
 			Tuple<Double,Double> xy2 = new Tuple<Double,Double>(1.0, 0.0);
 			System.out.println("xy.equals(xy2) "+xy.equals(xy2));

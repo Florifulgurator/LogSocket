@@ -6,6 +6,7 @@
  
 :root {
 	font-family: system-ui, sans-serif;
+	tab-size: 4;
 	--bgDisco: rgb(0, 128, 127);
 	--fgDisco: rgb(0, 90, 90);
 	--shadow: 5px 5px 5px rgb(10, 10, 10);

@@ -15,13 +15,14 @@ if (LogSocketCreatorNr) realm = realm+LogSocketCreatorNr; // LogSocketCreatorNr 
 
 const lg0 = LogSocket.newLggr(realm, "#PAGE", "Test page log");
 
+
 // Tests >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 const lg1 = LogSocket.newLggr(realm, "#TEST#MOUSEENTER");
 const lg2 = LogSocket.newLggr(realm, "#TEST#EVENTSOURCE", "JS EventSource, receives ServerSentEvents from Servlet");
 const lg3 = LogSocket.newLggr(realm, "#TEST#XMLHttpRequest", "POST to Servlet");
 //const lg4 = LogSocket.newLggr(realm, "#TEST#JSLOOP", `JavaScript TEST: ${loop} quick Lorem Ipsums x2`);
-const lg5 = LogSocket.newLggr(realm, "#TEST#WEAKREF", `JavaScript TEST: WeakRefs`);
+const lg5 = LogSocket.newLggr(realm, "#TEST#WEAKREF", `JS TEST: WeakRefs, Lggr JSON`);
 
 
 function mouseEnter(ev) {
@@ -265,4 +266,4 @@ function testLog(txt){
 
 
 window.addEventListener("load", init, false);
-LogSocket.newLggr(realm, "#END", "Throwaway logger created at end of file TEST.js").log("Final message of last logger in the text.");
+LogSocket.newLggr(realm, "#PAGE#END", "Throwaway logger created at end of file TEST.js").log("Final message of last logger in the text.");

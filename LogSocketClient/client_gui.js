@@ -327,13 +327,16 @@ var titleEl = document.getElementById("titleID");
 
 function _cleanupDltdLggrs() {
 	gcLggrs.forEach( (shortId) => {
-		lggrListEl.removeChild( document.getElementById(`l${shortId}`).parentNode );
+		let l = document.getElementById(`l${shortId}`);
+		if (l) lggrListEl.removeChild( l.parentNode );
+		else console.warn(`${shortId} not in lggrList, but in gcLggrs. LogSocketServer likely reports ERROR 4. Likely a BUG in LogSocket#finalizeLggr.`);
+		
 		shortId2T.delete(shortId);
 	});
 	gcLggrs=[];  // TODO: forget gcLggrs, clean up by CSS class gc, ign
 	
 	lastListedShortId = "";
-	for ( let trEl=lggrListEl.firstElementChild; trEl; trEl=trEl.nextElementSibling ) {
+	for ( let trEl = lggrListEl.firstElementChild; trEl; trEl=trEl.nextElementSibling ) {
 		shortId = trEl.querySelector(":nth-child(2)").id.substring(1);
 		trEl.querySelector(":nth-child(3)").textContent
 			= ClockTick2Str( lastListedShortId=="" ? shortId2T.get(shortId)-firstT : shortId2T.get(shortId)-shortId2T.get(lastListedShortId) );

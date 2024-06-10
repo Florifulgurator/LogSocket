@@ -41,7 +41,7 @@ private static URI                       wsUri = URI.create("ws://localhost:8080
 protected static boolean                 shutDown = false;
 protected static boolean                 isOpen = false; // == true after /START was OK
 
-private static Integer                   numLggrs = 0;	//Count of created Loggers. Not seriously used.
+private static Integer                   numLggrs = 0;	//Count of created Loggers. Used in Lggr.shortId
 
 private static Map<String,Integer>       realmLabel2lastLggrN2 = new ConcurrentHashMap<>();
 // DOCU #681a8b4e 
@@ -197,7 +197,7 @@ static public void onMessage(String msg, Session sess) {
 
 private static void connect() { 
 	if (websocket!=null) {
-		System.err.println("---- LogSocket_ERROR_6: Bug/FIXME: WebSocket already there.");
+		System.err.println("---- LogSocket_ERROR_6: BUG: WebSocket already there.");
 		return;
 	}
 	websocket = new WebSocketImpl1(); // !!!!!!!!!!!!!!!!!!!!!!!!!! #6b31fbdc
@@ -213,16 +213,13 @@ public static Lggr newLggr(String realm, String label) {
 }
 
 public static synchronized Lggr newLggr(String realm, String label, String comment) { // label e.g. #bla1#BLA77, which is two labels that can be filtered separately.
-// Synchronized static methods are synchronized on the class object
-
 	if ( websocket==null ) connect();
 
-	//DEV update JS   // DOCU
 	String checkedLabel = label;
 	if (label.isEmpty()) {
 		checkedLabel = "#NOLABEL"; // DOCU #40bf1ecb
 	} else if (label.charAt(0)!='#') {
-		checkedLabel = "#"+label; // else bug!
+		checkedLabel = "#"+label;
 	}
 		
 	String checkedRealm = illglRlmChrsPttrn.matcher(realm).replaceAll("");
@@ -249,7 +246,6 @@ public static synchronized Lggr newLggr(String realm, String label, String comme
 		return new Lggr(checkedRealm, checkedLabel, 0, 0L, "", 0);	
 	}
 	// ----------------------
-	
 
 	// Duplicate?
 	Integer lastLggrN2 = realmLabel2lastLggrN2.get(checkedRealmLabel);
@@ -257,11 +253,11 @@ public static synchronized Lggr newLggr(String realm, String label, String comme
 	realmLabel2lastLggrN2.put(checkedRealmLabel, n2);
 
 	Lggr newLggr = new Lggr(
-			checkedRealm, checkedLabel,
-			n2,
-			labelsCode,
-			( comment = comment.trim()+( checkedRealmLabel.equals(realm+label) ? "" : " [REAL/LABEL CORRECTED]" ) ),
-			++numLggrs
+		checkedRealm, checkedLabel,
+		n2,
+		labelsCode,
+		( comment = comment.trim()+( checkedRealmLabel.equals(realm+label) ? "" : " [REALM/LABEL CORRECTED]" ) ),
+		++numLggrs
 	);
 	newLggr.on = !"M".equals(filtered); // "M" == ignore messages //DEV #6cb5e491
 
@@ -270,7 +266,7 @@ public static synchronized Lggr newLggr(String realm, String label, String comme
 	LggrRefRcrd lRR = new LggrRefRcrd(checkedRealmLabel+";"+n2, numLggrs, new boolean[]{false}, new WeakReference<>(newLggr));
 	newLggr.lggrRefRcrd = lRR;
 
-	// Add to data structure for filter:
+	// Add to data structure for filter...
 	ArrayList<LggrRefRcrd> lggrRefRcrdList = null;
 	Map<Long, ArrayList<LggrRefRcrd>> labelsCode2LggrRefRcrdList = realm2labelsCode2LggrRefRcrdList.get(checkedRealm);
 	if (null==labelsCode2LggrRefRcrdList) {
@@ -292,7 +288,11 @@ public static synchronized Lggr newLggr(String realm, String label, String comme
 		}
 	}
 	
+	// ... which later needs to be cleaned up / finalized:
+	String rlm = checkedRealm;
+	newLggr.cleanable = cleaner.register(newLggr, () -> finalizeLggr(rlm, labelsCode) );
 
+	// Going public:
 	if (Nr==null) { // E.g. websocket not yet ready
 		nrBuffer.add(newLggr);
 		nrBuffered = true;
@@ -301,10 +301,20 @@ public static synchronized Lggr newLggr(String realm, String label, String comme
 	}
 
 	System.out.println("newLggr on="+newLggr.on+" "+Long.toBinaryString(labelsCode)
-		+" "+realm+" "+label+" "+comment
+		+" "+newLggr.shortId+" "+newLggr.realm+" "+newLggr.label+" "+newLggr.comment
 	); //DIAGN
 
 	return newLggr;
+}
+
+
+protected static void finalizeLggr(String realm, long labelsCode) {
+	ArrayList<LggrRefRcrd> lggrRefRcrdList = null;
+	try { lggrRefRcrdList = realm2labelsCode2LggrRefRcrdList.get(realm).get(labelsCode); }
+	catch (Exception e) { //NullPointerException
+		System.err.println("---- LogSocket_ERROR_18 lggrRefRcrdList not found in realm2labelsCode2LggrRefRcrdList: "+e.getMessage());
+	}
+	if (lggrRefRcrdList != null) cleanupQ.add(lggrRefRcrdList);
 }
 
 
@@ -324,7 +334,7 @@ static {
 			} catch (InterruptedException e) {
 				break;
 			}
-			DIAGNmsg[0] = "==== WeakRef cleanup: ";
+			DIAGNmsg[0] = "==== WeakRef and shortId2CFuture cleanup: ";
 			
 			do { qElSet.add(qEl);	} // now take them all
 			while ( (qEl=cleanupQ.poll()) != null ); 
@@ -369,17 +379,6 @@ static {
 } // END static
 
 
-protected static void finalizeLggr(String realm, long labelsCode) {
-// Registered after nrBuffer/logBuffer are released and their Lggr references cleared.
-// I.e. at this point LogSocket.Nr is known, while in realm2labelsCode2LggrRefRcrdList it is not known.
-	ArrayList<LggrRefRcrd> lggrRefRcrdList = null;
-	try { lggrRefRcrdList = realm2labelsCode2LggrRefRcrdList.get(realm).get(labelsCode); }
-	catch (Exception e) { //NullPointerException
-		System.err.println("---- LogSocket_ERROR_18 lggrRefRcrdList not found in realm2labelsCode2LggrRefRcrdList: "+e.getMessage());
-	}
-	if (lggrRefRcrdList != null) cleanupQ.add(lggrRefRcrdList);
-}
-
 
 protected static void makeLggrIdStrings(Lggr lgr) {
 	if ( lgr.shortId!=null) { return; }
@@ -393,14 +392,11 @@ protected static void makeLggrIdStrings(Lggr lgr) {
 }
 	
 
-private static void makeKnown(Lggr lgr) { // FIXME #12fe3d9c %NEW_LGGR null Jsp/null#HELLOWORLD (UTF-8 test: 👁↑) Throwaway logger in declaration
-	if (lgr.dontMakeKnown) return; //TODO JavaScript
+private static void makeKnown(Lggr lgr) { // FIXME #12fe3d9c %NEW_LGGR null Jsp/null#HELLOWORLD ...
+	if (lgr.dontMakeKnown) return;
 	try {
-		String realm = lgr.longId.split("/",2)[0];
-		long lbc = lgr.labelsCode; // to be sure no reference to lgr is passed to lgr.cleanable
-		lgr.cleanable = cleaner.register(lgr, () -> finalizeLggr(realm, lbc) );
-		
 		websocket.sendText("!NEW_LGGR "
+				+ Long.toHexString(0L) + " " //Long.toHexString(lgr.labelsCode) + " " // DEV #34b72a7
 				+ (lgr.on?"1 ":"0 ")
 				+ lgr.shortId + " "
 				+ lgr.longId
@@ -414,10 +410,9 @@ private static void makeKnown(Lggr lgr) { // FIXME #12fe3d9c %NEW_LGGR null Jsp/
 		lgr.on = false;
 		lgr.cleanable = null;
 		shutDown = true; isOpen = false;
-		return;
 	}
-	return;
 }
+
 
 static void releaseNrBuffer() {
 	if (Nr==null) { System.err.println("!!!- LogSocket_ERROR_15: FATAL BUG. Nr should not be null"); }
@@ -432,23 +427,19 @@ static void releaseNrBuffer() {
 }
 
 
-
 public static boolean notBuffered(Lggr lgr, String msg) {
 	if (Nr == null) {
-		//debugMsg(0,"!--- LogSocket.log(): BUFFERING to logBuffer while waiting for LogSocket.Nr");
 		logBuffer.add( new LggrMsgTms(lgr, msg, round1(sysT_ms()) ) ); // TODO flag
 		logBuffered = true;
 		return false;
 	}
-	if (logBuffered) {
-		//debugMsg(0,"!--- LogSocket.log(): Calling releaseLogBuffer(). Buffer size="+logBuffer.size());
+	if (logBuffered) releaseLogBuffer();
 		// The Nr==null problem concerned every Lggr of this LogSocket, so
 		// the ordering remains correct for all messages of this LogSocket ONLY.
-		releaseLogBuffer();
-		//debugMsg(0,"!--- LogSocket.log(): logBuffer emptied.");
-	}
+
 	return true;
 }
+
 
 static void releaseLogBuffer() {
 	logBuffered = false;
@@ -478,17 +469,17 @@ protected static void diagn(String txt) { //TODO JavaScript
 	}
 }
 
+
 // Logging services: >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 public static boolean log(Lggr lgr, String msg) { return log(lgr, msg, '*', 0); }
-public static boolean logM(Lggr lgr, String msg) { return log(lgr, msg, '+', 0); } //TODO Javascript
-public static boolean logErr(Lggr lgr, String msg) { return log(lgr, msg, '+', 1); } //TODO Javascript
+public static boolean logM(Lggr lgr, String msg) { return log(lgr, msg, '+', 0); }
+public static boolean logErr(Lggr lgr, String msg) { return log(lgr, msg, '+', 1); }
 public static boolean logCmd(Lggr lgr, String cmd) { return log(lgr, cmd, '$', 0); } //TODO Javascript
 
 private static final String[] flag2Str = {" ", "&E ", "&B ", "&P "}; //for performance: flag as it appears in sendText(...) incl. surroundings 
 // #2fa32174   0 == nothing, 1 == Error  2 == Buffered 3 == Promise(JS)/CompletableFuture(Java)
 
-//TODO Refactor copy-paste
 public static boolean log(Lggr lgr, String msg, char firstChar, int flag) {
 	if (shutDown) {
 		lgr.on = false; //TODO all other loggers
@@ -497,7 +488,12 @@ public static boolean log(Lggr lgr, String msg, char firstChar, int flag) {
 
 	if ( notBuffered(lgr, msg) ) { // FIXME #536c8c47 flag and firstChar get lost when buffered
 		try {
-			websocket.sendText( firstChar+lgr.longId+"&"+lgr.shortId+"&"+(++lgr.numMsgs)+flag2Str[flag]+msg );
+			if (lgr.filterResult==null) {
+				websocket.sendText( "."+firstChar+lgr.longId+"&"+lgr.shortId+"&"+(++lgr.numMsgs)+flag2Str[flag]+msg );
+			} else {
+					websocket.sendText( firstChar+lgr.longId+"&"+lgr.shortId+"&"+(++lgr.numMsgs)+flag2Str[flag]+msg );
+			}
+			
 		} catch (Exception e) {
 			System.err.println("!!!- LogSocket_ERROR_4 (TODO) "+e.getMessage());
 			shutDown = true; isOpen = false;
@@ -518,7 +514,6 @@ public static CompletableFuture<String> logCFtr(Lggr lgr, String msg) {
 		Optional<CompletableFuture<String>> opt;
 		if ( (opt=shortId2CFuture.get(lgr.shortId))!= null && !opt.isEmpty() ) {
 			opt.get().completeExceptionally(new Throwable("logCFtr: Old CompletableFuture completed exceptionally in favour of a new one."));
-			//DEL return CompletableFuture.failedFuture(new Exception("ERROR: Last Future not yet completed."));
 		}
 		CompletableFuture<String> cft = new CompletableFuture<String>();
 		shortId2CFuture.put(lgr.shortId, Optional.of(cft));
@@ -617,7 +612,7 @@ public static String stackTraceToString(Exception e) {
 /* Error collection
  * 
 complain("LogSocket_ERROR_19: "+e.getMessage()+" cmd="+cmd);
-System.err.println("---- LogSocket_ERROR_18 lggrList not found in realm2labelsCode2LggrList: "+e.getMessage());
+System.err.println("---- LogSocket_ERROR_18  lggrRefRcrdList not found in realm2labelsCode2LggrRefRcrdList: "+e.getMessage());
 complain("LogSocket_ERROR_17: Filter rule already exists");
 complain("LogSocket_ERROR_16: Wrong LogSocket.Nr message=\""+msg+"\"");
 System.err.println("!!!- LogSocket_ERROR_15: FATAL BUG. Nr should not be null"); }
@@ -629,7 +624,7 @@ complain("LogSocket_ERROR_10: Unknown message=\""+msg+"\"");
 complain("LogSocket_ERROR_9: Logger to be stopped never existed. realm=\""+realm+"\" labelDW=\""+labelDW+"\"");
 System.err.println("!!!- LogSocket_ERROR_8 (TODO) "+e.getMessage());
 System.err.println("!!!- LogSocket_ERROR_7 (TODO) "+e.getMessage());
-System.err.println("---- LogSocket_ERROR_6: Bug/FIXME: WebSocket already there.");
+System.err.println("---- LogSocket_ERROR_6: BUG: WebSocket already there.");
 System.err.println("---- LogSocket_ERROR_5 Exception: "+e.getMessage());
 System.err.println("!!!- LogSocket_ERROR_4 (TODO) "+e.getMessage());
 System.err.println("!!!- LogSocket_ERROR_3 (TODO) "+e.getMessage());

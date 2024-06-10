@@ -188,6 +188,9 @@ function onMessage(evt) {
 				case "%/DIAGN":
 					if (TEST1) msgOutput(srvrMsg.substring(1), "L");
 					return;			
+				case "%!DIAGN":
+					if (TEST1) msgOutput(srvrMsg.substring(1), "S");
+					return;			
 				//   "1234567890123
 				case "%!ALERT_B": //Short extra message in the alert window
 				case "%/ALERT_B": 

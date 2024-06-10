@@ -41,6 +41,7 @@
 	if(!testLggrOK) lggr1.logErr("Compile time logger has not logged");
 	lggr1.log("... Setting COOP and COEP HTTP headers to allow JavaScript precision timer. See JS log for result.");
 
+
 	response.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
 	response.setHeader("Cross-Origin-Opener-Policy", "same-origin");
 
@@ -237,5 +238,24 @@ UTF-8 Symbols:
 ½BBBBBB
 ⅒CCCCCC&#8530;	
 ↑ Not quite monospaced!
+
+
+<script> scrptLggr = LogSocket.newLggr("JS", "#PAGE#SCRIPT#TAG", "<script> tag at end of TEST.jsp (HTML test)")
+
+scrptLggr.logM("This lggr as JSON:\n"+JSON.stringify(scrptLggr,
+		(key, value) => typeof value === "bigint" ? { $bigint_binary: value.toString(2) } : value,
+				"\t"
+));
+scrptLggr.log("Here is <span style='color:red'>some HTML</span>");
+setTimeout(()=>
+scrptLggr.logM("333ms later: This lggr as JSON:\n"+JSON.stringify(scrptLggr,
+		(key, value) => typeof value === "bigint" ? { $bigint_binary: value.toString(2) } : value,
+				"\t"
+)),
+333
+);
+
+
+</script>
 
 </body><% lggr1.log(" HTML tag close"); %></html>

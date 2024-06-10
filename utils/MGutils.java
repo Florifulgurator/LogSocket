@@ -5,9 +5,13 @@ import java.util.stream.Stream;
 
 public class MGutils {
 
-// General >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// Patterns >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-static final Pattern dotPttrn = Pattern.compile("[.]");
+public static final Pattern dotPttrn = Pattern.compile("[.]");
+public static final Pattern hatPttrn = Pattern.compile("\\^");
+
+
+// General >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 public static String shortClObjID(Object o) { return o==null?"null":Stream.of( dotPttrn.split(o.toString()) ).reduce((first,last)->last).get(); }
 
@@ -55,6 +59,13 @@ public static String escapeHTML(String s) { // non-HTML --> safe HTML
 	}
 	return sb.toString();
 }
+// Best: // https://stackoverflow.com/a/66481918/3123382
+//escapeHTML = function(unsafe) {
+//	return unsafe.replace(
+//		/[\u0000-\u002F\u003A-\u0040\u005B-\u0060\u007B-\u00FF]/g,
+//		c => '&#' + ('000' + c.charCodeAt(0)).slice(-4) + ';'
+//	);
+//}
 
 
 }

@@ -21,14 +21,16 @@ public class Lggr {
 	                               // nr==0 : realm+label listed as stopped/filtered before creation. => no longId, shortId, no finalization registry //DEV #6cb5e491
 	public boolean on = false;     // Logger messages switched on/off: A) when filtered "M" or when B) max log msg count reached
 	public int numMsgs = 0;        // Counted by LogSocket
-	public String longId;		   // Human readable informational unique Id, for syntax see LogSocket#makeLggrIdStrings
+	public String longId;	         // Human readable informational unique Id, for syntax see LogSocket#makeLggrIdStrings
 	public String shortId = null;  // "/"+LogSocket.Nr+"_"+nr
 	public String comment;
 	
 	Cleaner.Cleanable cleanable = null;       // ==null when filtered "E" 
+
 	long labelsCode = 0L;                     // !=0L when registered for filter and cleanup of weak references
 	public boolean dontMakeKnown = false;     // When filtered "E" before makeKnown(): "Silent" cleanup #5f5d8a51
 	LogSocket.LggrRefRcrd lggrRefRcrd = null;
+	public String filterResult = null;				// null== Filter not yet applied, ""== not filtered, "E","M"== filter result
 	
 	// Special logging functionalities:
 	public Hashtable<String,Integer> repeatCounters; // log max. n messages as counted by counter logCntrID
@@ -52,22 +54,14 @@ public class Lggr {
 
 	public String toString() { return longId; } // Should not be used
 	
-//	protected void stop () { // TODO Javascript
-//		on = false;
-//		if ( nr== 0) return;
-//		LogSocket.sendCmd(this, "!STOPPED "+shortId);
-//	}
 	
-	
-	// Logger services: >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+	// Logger services:
 	
 	public boolean log (String msg) { //TODO performance: directly call LogSocket.log(Lggr lgr, String msg, char firstChar, int flag)
 		if (on) return LogSocket.log(this, msg); else return false;
 	}
 
-	public boolean logErr (String msg) {  //TODO: Javascript
-		if (on) return LogSocket.logErr(this, msg); else return false;
-	}
+	public boolean logErr (String msg) { if (on) return LogSocket.logErr(this, msg); else return false;	}
 	
 	public boolean logM (String msg) { //TODO: Javascript
 		if (on) return LogSocket.logM(this, msg); else return false;
@@ -108,10 +102,10 @@ public class Lggr {
 
 	// Global named timers managed by LogSocketServer
 	public boolean timerStart (String timerName) {
-			if (on) return LogSocket.timerStartStop(this, timerName, true); else return false;
+		if (on) return LogSocket.timerStartStop(this, timerName, true); else return false;
 	}
 	public boolean timerStop (String timerName) {
-			if (on) return LogSocket.timerStartStop(this, timerName, false); else return false;
+		if (on) return LogSocket.timerStartStop(this, timerName, false); else return false;
 	}
 	
 	// DOCU #95f0f06 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>

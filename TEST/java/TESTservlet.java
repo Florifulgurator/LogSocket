@@ -174,7 +174,7 @@ public class TESTservlet extends HttpServlet {
 
 					do {
 						cftResult = ""; // else infinite loop when exception!
-						CompletableFuture<String> cft = l1.logCFtr("CompletableFuture.get(<ButtonClick>) timeout 1min: Continue Thread?");
+						CompletableFuture<String> cft = l1.logCFtr("(NOTE this is not "+l3.longId+") CompletableFuture.get(<ButtonClick>) timeout 1min: Continue Thread?");
 						//Should be l3, but test ExecutionException on 2nd call
 						try {
 							cftResult = cft.get(1, TimeUnit.MINUTES);
@@ -187,9 +187,11 @@ public class TESTservlet extends HttpServlet {
 						}
 						if(cftResult.equals("OK")) l3.log("CONTINUE thread....");
 					} while (cftResult.equals("OK"));
-					l3.log("Thread END");
+					l3.log("Thread END. Check garbage collection...");
      			});
      			// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+     			l1.log("...thread started.");
+     			
      		} else {
      			l1.log("CCCCCCCCCCCCCCCCCCCCCCCCCC");
      		}

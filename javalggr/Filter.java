@@ -5,12 +5,12 @@ import static florifulgurator.logsocket.utils.MGutils.*;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Map;
 import java.util.Set;
 import java.util.StringJoiner;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -19,7 +19,9 @@ import java.util.stream.Stream;
 
 public class Filter {
 
-static Map<String, String>            rules = new ConcurrentHashMap<>(); // insertion order to keep things tidy
+static boolean TEST1 = true;
+
+static Map<String, String> rulesUniq = new ConcurrentHashMap<>(); // insertion order to keep things tidy
 static Map<String, ConcurrentSkipListMap<Long, String>> realm2labelsCode2RuleResult = new ConcurrentHashMap<>();
 
 public static record RuleLR(String realm, String[] labels, long labelsCode, String result) {
@@ -27,7 +29,7 @@ public static record RuleLR(String realm, String[] labels, long labelsCode, Stri
 		return realm + ">" + (labels==null?"*":Arrays.stream(labels).collect(Collectors.joining("^")))
 	           + "=" + result;
 	}
-	public String toRuleStr() {
+	public String toRuleuniqStr() {
 		return realm + (labels==null?"":Arrays.stream(labels).collect(Collectors.joining("")) );
 	}
 	public String toString() { //DIAGN
@@ -36,7 +38,6 @@ public static record RuleLR(String realm, String[] labels, long labelsCode, Stri
 
 }
 
-static boolean TEST1 = true;
 
 @SuppressWarnings("serial")
 static class FilterError extends RuntimeException {
@@ -59,7 +60,7 @@ static long nextLabelNr = 1L;
 /**
  * Selfdocumenting name
  */
-public static long registerLabels(Stream<String> labelsStream) { //TODO distinct sublabels!
+public static long registerLabels(Stream<String> labelsStream) {
 	long[] labelsCode = {0L}; // effectively final
 	Long[] sublabelNr = {0L};
 	int[] numBits = {0};
@@ -68,28 +69,30 @@ public static long registerLabels(Stream<String> labelsStream) { //TODO distinct
 		if( null==( sublabelNr[0]=label2Nr.get(lbl) ) ) {
 			label2Nr.put(lbl, nextLabelNr); System.out.println("DIAGN label2Nr.put("+lbl+", "+Long.toBinaryString(nextLabelNr)+"))");
 			labelsCode[0] |= nextLabelNr;
-			numBits[0]++;
 			if( (nextLabelNr<<=1) == -9223372036854775808L ) {
 				//TODO Exlude from filter
 				throw new FilterError("Max. number of labels reached");
 			}
 		} else {
 			labelsCode[0] |= sublabelNr[0];
-			numBits[0]++;
 		}
+		numBits[0]++;
 	});
-	
 	labelsCode2NumBits.put(labelsCode[0], numBits[0]);
+	
 	return labelsCode[0];
 }
-
 
 
 // DOCU #1c887880 Rule string syntax:
 // realm>#label1#label12^#label3=M  // #label1#label12 treated as one label. "M" ignore *M*essages, but track existence and make ID
 //  *>#label1^#label2^#label3=E     // 3 labels. "E" ignore *E*xistence. No finalize(), no ID for new loggers
 // rlm>*=M
-public static final Pattern hatPttrn = Pattern.compile("\\^");
+public static Comparator<Long> labelsCodeComparator = (l1,l2) -> { // Sort by specificity #1ab76b52
+	Integer b1=labelsCode2NumBits.get(l1), b2=labelsCode2NumBits.get(l2);
+	if ( b1==null || b2==null ) { b1=0; b2=0; throw new FilterError("BUG: ConcurrentSkipListMap comparator: labelsCode2NumBits gives null."); }
+	return b1!=b2 ? (int)Math.signum(b1-b2) : (int)Math.signum(l1-l2);
+};
 /**
  * Selfdocumenting name
  */
@@ -101,7 +104,6 @@ static RuleLR parseRuleStringAndStore(String ruleRStr) throws FilterError {
 	if (a<1) throw new FilterError("parseRuleString("+ruleRStr+") Error1");
 	if (b==-1) throw new FilterError("parseRuleString("+ruleRStr+") Error2");
 	if (b==ruleRStr.length()-1) throw new FilterError("parseRuleString("+ruleRStr+") Error3");
-
 	// Split labels and register:
 	String[] lblL = null;
 	if (ruleRStr.charAt(a+1)=='*') {
@@ -116,31 +118,16 @@ static RuleLR parseRuleStringAndStore(String ruleRStr) throws FilterError {
 	// New rule:
 	String result = ruleRStr.substring(b+1);
 	String realm = ruleRStr.substring(0, a);
-	RuleLR ruleLR = new RuleLR(
-		realm,
-		lblL,
-		labelsCode,
-		result
-	);
+	RuleLR ruleLR = new RuleLR(realm, lblL, labelsCode, result );
 	// really new?
-	String ruleStr = ruleLR.toRuleStr();
-	if ( rules.containsKey(ruleStr) )  throw new FilterError("Filter rule "+ruleStr+" already exists: "+ruleLR.toRuleRStr());
-	rules.put(ruleStr, ruleLR.result);
+	String ruleuniqStr = ruleLR.toRuleuniqStr();
+	if ( rulesUniq.containsKey(ruleuniqStr) )  throw new FilterError("Filter: "+ruleuniqStr+" already exists: "+ruleLR.toRuleRStr());
+	rulesUniq.put(ruleuniqStr, ruleLR.result);
 	
 	//Register rule:
 	ConcurrentSkipListMap<Long, String> labelsCode2RuleResult = realm2labelsCode2RuleResult.get(ruleLR.realm);
 	if (null==labelsCode2RuleResult) {
-		labelsCode2RuleResult = new ConcurrentSkipListMap<Long,String>(
-			// Sort by specificity #1ab76b52
-			(l1,l2) -> {
-				Integer b1=labelsCode2NumBits.get(l1), b2=labelsCode2NumBits.get(l2);
-				if ( b1==null || b2==null ) {
-					b1=0; b2=0;
-					throw new FilterError("BUG: ConcurrentSkipListMap comparator: labelsCode2NumBits gives null.");
-				}
-				return b1!=b2 ? (int)Math.signum(b1-b2) : (int)Math.signum(l1-l2);
-			}
-		);
+		labelsCode2RuleResult = new ConcurrentSkipListMap<Long,String>( labelsCodeComparator ); // Sort keys by specificity #1ab76b52
 		realm2labelsCode2RuleResult.put(ruleLR.realm, labelsCode2RuleResult);
 	}
 	labelsCode2RuleResult.put(labelsCode, ruleLR.result);
@@ -192,7 +179,7 @@ static synchronized void applyRule2lggrs(RuleLR ruleLR) { //DEV #23e526a3 #6cb5e
 System.out.println("== DIAGN applyRule2lggrs "+ruleLR);
 	if ( ruleLR.labels==null ) {
 		LogSocket.complain("TODO #6776bf39 filter1 rule="+ruleLR);
-		LogSocket.sendMsg("%/ALERT_R TODO #6776bf39 Filter:<br/>"+escapeHTML(ruleLR.toString()));
+		LogSocket.sendMsg("%/ALERT_R TODO #6776bf39 Filter:<br/>"+escapeHTML(ruleLR.toRuleRStr()));
 		return;
 	}
 	
@@ -201,6 +188,7 @@ System.out.println("== DIAGN applyRule2lggrs "+ruleLR);
 		 realms = LogSocket.realm2labelsCode2LggrRefRcrdList.keySet();
 		 if (realms.isEmpty()) return;
 	} else {
+		if ( !LogSocket.realm2labelsCode2LggrRefRcrdList.containsKey(ruleLR.realm) ) return;
 		realms = Set.of(ruleLR.realm);
 	}
 
@@ -245,7 +233,6 @@ System.out.println("=== DIAGN applyRule2lggrs realmlabel=="+l.realm+l.label+" lo
 								} else {
 									DIAGNgoneNum[0]++;
 System.out.println("=== DIAGN applyRule2lggrs longIdX=="+rcrd.longIdX());
-
 								}
 							}
 						);

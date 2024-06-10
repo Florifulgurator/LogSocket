@@ -19,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -77,6 +78,8 @@ public static Queue<String>               srvrBuffer = new ConcurrentLinkedQueue
 
 private static LinkedHashSet<String>      filter1 = new LinkedHashSet<>(); // Insertion order. Working filter in LogSocket might be ordered differently  //DEV #6cb5e491
 private static boolean                    saveFilter1 = false;
+protected static final LinkedBlockingQueue<String>
+                                          fltrHlprQ = new LinkedBlockingQueue<>();
 
 public static Map<String, Long>           timersStartT = new ConcurrentHashMap<>(20); //Clock.T()
 public static Map<String, String>         timersDT = new ConcurrentHashMap<>(20); // DT in ms as String
@@ -214,7 +217,12 @@ synchronized public void onMessage(Session session, String msg) throws Exception
    			sendMsgToAllListeners("%!ERROR 10 LogSocketServer: Syntax Error. "+e.getMessage()+" msg=\""+msg+"\"", false);
    			return;
    		}
-   		
+
+	case '.':
+		// Message from new Lggr to be filtered by server with prepared filter rule(s)
+		//DEV #34b72a7
+		onMessage(session, msg.substring(1)+" //DEV #34b72a7");
+		return;
    	}
 
    	// Non-log commands >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -239,7 +247,7 @@ synchronized public void onMessage(Session session, String msg) throws Exception
 		}
 	}
 	
-	sendMsgToAllListeners("%!ERROR 13 LogSocketServer: Unknown command. msg=\""+msg+"\" session="+shortClObjID(session), false);
+	sendMsgToAllListeners("%!ERROR 13 LogSocketServer: Unknown command: msg=\""+msg+"\" session="+shortClObjID(session), false);
 
 }// onMessage(...)  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -310,6 +318,43 @@ srvrCommands.put("!GREETS", new SrvrCmd() { synchronized public void exec(Sessio
 }
 } );
 // ---
+srvrCommands.put("!NEW_LGGR", new SrvrCmd() { public void exec(Session sess, String argStr)
+{
+//		websocket.sendText("!NEW_LGGR "
+// // argStr:
+//				+ Long.toHexString(lgr.labelsCode) + " "
+//				+ (lgr.on?"1 ":"0 ")
+//				+ lgr.shortId + " "
+//				+ lgr.longId
+//				+ (lgr.comment!=null ? " "+lgr.comment : "")); // see also GC_LGGR
+
+	if(firstLgScktTisNew) {
+		sendMsgToAllListeners("%FIRST_T "+firstLgScktT, true);
+		firstLgScktTisNew = false;
+	}
+
+	long T = Clock.T();
+	// Add timestamp, remove labelsCode:
+	sendMsgToAllListeners("%NEW_LGGR " +T+ " " + blankPttrn.split(argStr, 2)[1], true); // true = not into srvrBuffer. Kept extra (%NEW_LGGR) or gets lost when nobody is listening
+
+	String[] args = blankPttrn.split(argStr, 5);
+	
+	if (args[0].equals("0")) {
+		fltrHlprQ.add(argStr); //DEV #34b72a7
+	}
+	
+	boolean existed;
+	synchronized(lggrMap) {
+		//public static record LggrRcrd(String longId, String comment, boolean[] on, long T, Session sess) {}
+		existed = lggrMap.put( args[2], new LggrRcrd( args[3], args[4], new boolean[]{"1".equals(args[1])}, T, sess ) ) != null;
+	}
+	if( existed ) {
+		System.err.println("!!.. "+thisClObjID+": @onMessage DUPLICATE: "+args[0]);
+		sendMsgToAllListeners("%!ERROR 3 LogSocketServer: Duplicate: "+args[0], false);
+	}
+}
+} );
+// ---
 srvrCommands.put("!GC_LGGR", new SrvrCmd() { public void exec(Session sess, String argStr)
 {
 	//From Lggr.finalize()
@@ -322,27 +367,6 @@ srvrCommands.put("!GC_LGGR", new SrvrCmd() { public void exec(Session sess, Stri
 	if( !existed ) {
 		System.err.println("!!.. "+thisClObjID+": @onMessage !GC_LGGR ... NOT FOUND: "+args[0]);
 		sendMsgToAllListeners("%!ERROR 4 LogSocketServer: !GC_LGGR: Not found: \""+args[0]+"\"", false);	
-	}
-}
-} );
-// ---
-srvrCommands.put("!NEW_LGGR", new SrvrCmd() { public void exec(Session sess, String argStr)
-{
-	if(firstLgScktTisNew) {
-		sendMsgToAllListeners("%FIRST_T "+firstLgScktT, true);
-		firstLgScktTisNew = false;
-	}
-	long T = Clock.T();
-	sendMsgToAllListeners("%NEW_LGGR " +T+ " " + argStr, true); // true = not into srvrBuffer. Kept extra (%NEW_LGGR) or gets lost when nobody is listening
-	String[] args = blankPttrn.split(argStr, 4);
-	boolean existed;
-	synchronized(lggrMap) {
-		existed = lggrMap.put( args[1], new LggrRcrd( args[2], args[3], new boolean[]{"1".equals(args[0])}, T, sess ) ) != null;
-	}
-	
-	if( existed ) {
-		System.err.println("!!.. "+thisClObjID+": @onMessage DUPLICATE: "+args[0]);
-		sendMsgToAllListeners("%!ERROR 3 LogSocketServer: Duplicate: "+args[0], false);
 	}
 }
 } );
@@ -424,12 +448,12 @@ srvrCommands.put("!CLOSE", new SrvrCmd() { synchronized public void exec(Session
 	try {
 		sess.close(cr);
 	} catch(IOException e) {
-		sendMsgToAllListeners("%!ERROR 12 LogSocketServer: SrvrCmd !CLOSE: "+e.getMessage(), false);
+		sendMsgToAllListeners("%!ERROR 19 LogSocketServer: SrvrCmd !CLOSE: "+e.getMessage(), false);
 	}
 }
 } );
 // --- 
-// Client side clock sync per clock ping pong >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// Client side clock sync per timestamp ping pong >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 srvrCommands.put("!TING", new SrvrCmd() { synchronized public void exec(Session sess, String arg)
 {
 	if ( Clock.tong==null ) {
@@ -456,7 +480,7 @@ srvrCommands.put("!TONG", new SrvrCmd() { synchronized public void exec(Session 
 	} 
 }
 } );
-// --- Server side clock sync, mirroring client side allgorithm
+// --- Server side clock sync, mirroring client side algorithm
 srvrCommands.put("!SYNC", new SrvrCmd() { synchronized public void exec(Session sess, String arg)
 {
 	Clock.SyncDaemon.T0correction(sess, lastMsgT); // Launches thread and returns
@@ -495,7 +519,7 @@ lggrCommands.put("MT_LOG", new LggrCmd() { public void exec(String msgPrefix, St
  	// so we postpone things into a thread:
 	exctrService.execute( () -> {
  		synchronized(randomVars) {
- 			// FIXME: Avoid extremely unlikely race condition:
+ 			// TODO: Avoid extremely unlikely race condition:
  			// The following sendMsgToAllListeners(...) have to come in a row (no other such construct interfering)
  			sendMsgToAllListeners("+"+msgPrefix+" MicroTimer "+reportName+" "+rnd.getASCIIart(1,"μs") , true);
   			sendMsgToAllListeners("%MT_SHOW "+reportName+" "+rnd.getASCIIartHeader(), true);
@@ -571,6 +595,8 @@ try {
 	e.printStackTrace();
 }
 
+
+FilterHelper.start();
 
 }// static block <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
@@ -700,13 +726,13 @@ System.err.println("!... "+thisClObjID+" @OnClose: PROTOCOL ERROR "+sessClObjId+
 sendMsgToAllListeners("%!ERROR 9 LogSocketServer: "+sessionClObjID+" neither Listener nor LogSocket", false);
 sendMsgToAllListeners("%!ERROR 10 LogSocketServer: "+e.getMessage()+" (Syntax Error) msg=\""+msg+"\"", false);
 sendMsgToAllListeners("%!ERROR 11 LogSocketServer: "+e.getMessage()+" (Unknown) msg=\""+msg+"\"", false);
-sendMsgToAllListeners("%!ERROR 12 LogSocketServer: "+e.getMessage()+" (Cannot tell more...) msg=\""+msg+"\"", false);
+sendMsgToAllListeners("%!ERROR 12 LogSocketServer: Exception while executing command: "+e.getClass().getName()+" "+e.getMessage()+" msg=\""+msg+"\" session="+shortClObjID(session), false);
 sendMsgToAllListeners("%!ERROR 13 LogSocketServer: Unknown command? "+e.getMessage()+" msg=\""+msg+"\"", false);
 sendMsgToAllListeners("%!ERROR 15 LogSocketServer: !MT_REPORT: Syntax Error: "+e.getMessage(), false);
 sendMsgToAllListeners("%!ERROR 16 LogSocketServer: !MT_LOG: Report \""+reportName+"\" not found.", false);
 sendMsgToAllListeners("%!ERROR 17 LogSocketServer: /STOP_L: "+e.getMessage(), false);
 sendText(sess, "%!ERROR 18 LogSocketServer.Clock: T0correction("+LogSocketServer.shortClObjID(s)+") not even started");
-"%!ERROR 19 );
+sendMsgToAllListeners("%!ERROR 19 LogSocketServer: SrvrCmd !CLOSE: "+e.getMessage(), false);
 LogSocketServer.sendText(sess, "!ERROR 20 LogSocketServer.Clock: tingtongReceiver exception "+e.getClass().getName()+" message: "+ e.getMessage());
 sendMsgToAllListeners("%!ERROR 21 LogSocketServer: Empty msg from "+shortClObjID(session), false);
 sendMsgToAllListeners("%!ERROR 22 LogSocketServer: /CFT Exception: "+e.getClass().getName()+" "+e.getMessage()+" arg="+arg, false);
