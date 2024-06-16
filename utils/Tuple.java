@@ -1,5 +1,5 @@
 package florifulgurator.logsocket.utils;
-// Instead of florifulgurator.logsocket.YSeq.Tuple
+// Instead of florifulgurator.logsocket.yseq.FnctlTuple
 // TODO test which is better qwertz
 
 public class Tuple<S, T> {

@@ -5,7 +5,7 @@ package florifulgurator.logsocket.yseq;
 // which is also about "adding the tuple feature to Java",
 // i.e. tuples of objects without requiring to explicitly specify/ construct a data transfer object in the beginning...
 // i.e. functional interface-based (vs. object class-based) tuples.
-// Only when reading the tuple members, a DTO needs might be created.
+// Only when reading the tuple members, a DTO needs might be created (and a convention on object member names introduced for the tuple components).
 
 // // E.g. define
 // ArrayList< FnctlTuple<Integer, WeakReference<Lggr>> > lggrList
@@ -22,10 +22,10 @@ package florifulgurator.logsocket.yseq;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 
-
+@FunctionalInterface
 public interface FnctlTuple<S, T> { //!!!!!!!!...
 
-	void eval(BiConsumer<S, T> consumer); // eval to void may be extended to eval to <E>
+	void eval(BiConsumer<S, T> xyz); // eval to void may be extended to eval to <E>
  
 	static <S, T> FnctlTuple<S, T> of(S s, T t) { return bc -> bc.accept(s, t);	}
 
@@ -74,9 +74,15 @@ public interface FnctlTuple<S, T> { //!!!!!!!!...
 
 		public static void main(String[] args) {
 
-			System.out.println(">>>>>>>>>> Testing Seq FnctlTuple >>>>>>>>>>\n");
+			System.out.println(">>>>>>>>>> Testing FnctlTuple >>>>>>>>>>\n");
 		
-			FnctlTuple<Double,Double> xy = FnctlTuple.of(1.0, 0.0);
+			Double ddd = 0.0;
+			FnctlTuple<Double,Double> xy = FnctlTuple.of(1.0, ddd);
+			System.out.println( "xy ==  "+ xy.bakeToString());
+			ddd = 7.7;
+			System.out.println( "xy ==  "+ xy.bakeToString());
+					
+			
 			FnctlTuple<Double,Double> rot30xy = rot30(xy);
 			TupleObject<Double,Double>  tpo = rot30xy.toObject();
 			
